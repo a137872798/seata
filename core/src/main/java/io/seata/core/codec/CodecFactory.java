@@ -25,17 +25,19 @@ import io.seata.common.loader.EnhancedServiceLoader;
  *
  * @author zhangsen
  * @date 2019 /5/6
+ * 编解码工厂
  */
 public class CodecFactory {
 
     /**
      * The constant CODEC_MAP.
+     * 全局对象 实现单例
      */
     protected static final Map<CodecType, Codec> CODEC_MAP = new ConcurrentHashMap<CodecType, Codec>();
 
     /**
      * Get codec codec.
-     *
+     * 通过 byte 寻找枚举中的 编解码方式
      * @param codec the code
      * @return the codec
      */
@@ -44,6 +46,7 @@ public class CodecFactory {
         if (CODEC_MAP.get(codecType) != null) {
             return CODEC_MAP.get(codecType);
         }
+        // 使用增强的SPI 加载  加载对应的实现类
         Codec codecImpl = EnhancedServiceLoader.load(Codec.class, codecType.name());
         CODEC_MAP.put(codecType, codecImpl);
         return codecImpl;

@@ -17,14 +17,14 @@ package io.seata.core.context;
 
 /**
  * The interface Context core.
- *
+ * 上下文对象核心方法
  * @author sharajava
  */
 public interface ContextCore {
 
     /**
      * Put string.
-     *
+     * 设置 string 信息
      * @param key   the key
      * @param value the value
      * @return the string
@@ -33,7 +33,7 @@ public interface ContextCore {
 
     /**
      * Get string.
-     *
+     * 获取string
      * @param key the key
      * @return the string
      */

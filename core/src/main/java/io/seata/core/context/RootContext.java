@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Root context.
- *
+ * root 应该是代表 首个事务 也就是协调者
  * @author jimin.jm @alibaba-inc.com
  */
 public class RootContext {
@@ -49,7 +49,7 @@ public class RootContext {
 
     /**
      * Bind.
-     *
+     * 为上下文对象记录当前xid
      * @param xid the xid
      */
     public static void bind(String xid) {

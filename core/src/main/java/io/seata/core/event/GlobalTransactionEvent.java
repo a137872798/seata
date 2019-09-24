@@ -19,7 +19,7 @@ import io.seata.core.model.GlobalStatus;
 
 /**
  * Event data for global transaction.
- *
+ * 全局性的事务事件
  * @author zhengyangyong
  */
 public class GlobalTransactionEvent implements Event {

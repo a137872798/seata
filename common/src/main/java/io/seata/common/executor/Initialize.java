@@ -17,6 +17,7 @@ package io.seata.common.executor;
 
 /**
  * The interface Initialize.
+ * 初始化接口 在 enhancedSPI 中 初始化的类 如果实现该接口会自动调用init 方法
  *
  * @author zhangsen
  */

@@ -19,7 +19,7 @@ import io.seata.common.loader.EnhancedServiceLoader;
 
 /**
  * The type Context core loader.
- *
+ * Context加载器
  * @author sharajava
  */
 public class ContextCoreLoader {
@@ -30,7 +30,7 @@ public class ContextCoreLoader {
         static {
             ContextCore contextCore = EnhancedServiceLoader.load(ContextCore.class);
             if (contextCore == null) {
-                // Default
+                // Default   基于线程绑定的上下文对象
                 contextCore = new ThreadLocalContextCore();
             }
             instance = contextCore;

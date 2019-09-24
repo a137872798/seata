@@ -17,6 +17,7 @@ package io.seata.core.constants;
 
 /**
  * The type Configuration keys.
+ * 配置项 key
  *
  * @author jimin.jm @alibaba-inc.com
  */

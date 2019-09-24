@@ -25,11 +25,18 @@ import io.netty.util.concurrent.FastThreadLocalThread;
  *
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /9/12
+ * 线程工厂 创建的线程应该是携带 name 属性
  */
 public class NamedThreadFactory implements ThreadFactory {
+    /**
+     * 全局计数器
+     */
     private final AtomicInteger counter = new AtomicInteger(0);
     private final String prefix;
     private final int totalSize;
+    /**
+     * 注意该属性很重要 代表了以什么意图来创建线程
+     */
     private final boolean makeDaemons;
 
     /**
@@ -57,6 +64,7 @@ public class NamedThreadFactory implements ThreadFactory {
 
     /**
      * Instantiates a new Named thread factory.
+     * 默认情况创建守护线程
      *
      * @param prefix    the prefix
      * @param totalSize the total size

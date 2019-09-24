@@ -23,6 +23,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author Geng Zhang
  */
 public class PositiveAtomicCounter {
+    /**
+     * 设置了上限
+     */
     private static final int    MASK = 0x7FFFFFFF;
     private final AtomicInteger atom;
 

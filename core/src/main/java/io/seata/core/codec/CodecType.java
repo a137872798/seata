@@ -19,6 +19,8 @@ package io.seata.core.codec;
  * The enum serialize type.
  *
  * @author leizhiyuan
+ * 编解码枚举
+ * 看来这种分布式内部通信都是不使用 json 作为序列化方式的 而是追求更高的性能
  */
 public enum CodecType {
 
@@ -26,6 +28,7 @@ public enum CodecType {
      * The seata.
      * <p>
      * Math.pow(2, 0)
+     * 应该是 seata 自定义的某种序列化方式
      */
     SEATA((byte)0x1),
 
@@ -33,6 +36,7 @@ public enum CodecType {
      * The protobuf.
      * <p>
      * Math.pow(2, 1)
+     * google 的 protobuf
      */
     PROTOBUF((byte)0x2),
 
@@ -40,6 +44,7 @@ public enum CodecType {
      * The kryo.
      * <p>
      * Math.pow(2, 2)
+     * kryo
      */
     KRYO((byte)0x4),
     ;

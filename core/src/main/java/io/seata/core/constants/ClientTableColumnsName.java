@@ -17,6 +17,7 @@ package io.seata.core.constants;
 
 /**
  * client table columns name.
+ * 客户端 事务表常量  难道通过本地额外的 表来记录事务信息  这个思路跟TCC-TRANSACTION很相似
  *
  * @author zjinlei
  */

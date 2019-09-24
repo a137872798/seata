@@ -22,7 +22,7 @@ import io.seata.common.loader.LoadLevel;
 
 /**
  * The type Thread local context core.
- *
+ * 默认实现
  * @author jimin.jm @alibaba-inc.com
  */
 @LoadLevel(name = "ThreadLocalContextCore", order = Integer.MIN_VALUE)

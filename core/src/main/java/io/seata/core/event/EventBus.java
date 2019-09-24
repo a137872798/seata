@@ -17,7 +17,7 @@ package io.seata.core.event;
 
 /**
  * The interface fot event bus.
- *
+ * 事件总线 类似 EventLoop
  * @author zhengyangyong
  */
 public interface EventBus {
@@ -25,5 +25,9 @@ public interface EventBus {
 
     void unregister(Object subscriber);
 
+    /**
+     * 应该是将事件传递到下一环
+     * @param event
+     */
     void post(Event event);
 }

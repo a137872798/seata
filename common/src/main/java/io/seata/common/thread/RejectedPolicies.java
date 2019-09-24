@@ -21,6 +21,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * Policies for RejectedExecutionHandler
+ * 拒绝策略
  *
  * @author guoyao
  */
@@ -39,6 +40,7 @@ public final class RejectedPolicies {
                     return;
                 }
                 BlockingQueue<Runnable> workQueue = executor.getQueue();
+                // 如果队列已满 直接拉取任务来处理 并将新任务添加到线程池中
                 Runnable firstWork = workQueue.poll();
                 boolean newTaskAdd = workQueue.offer(r);
                 if (firstWork != null) {

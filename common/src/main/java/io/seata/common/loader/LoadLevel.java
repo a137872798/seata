@@ -23,7 +23,7 @@ import java.lang.annotation.Target;
 
 /**
  * The interface Load level.
- *
+ * 类的加载级别  在enhanceSPI 中可能一个 interface 有多个实现 这里就是根据优先级获取
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /10/10
  */

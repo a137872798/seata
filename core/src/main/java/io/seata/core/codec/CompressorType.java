@@ -17,16 +17,19 @@ package io.seata.core.codec;
 
 /**
  * @author Geng Zhang
+ * 使用使用压缩
  */
 public enum CompressorType {
 
     /**
      * Not compress
+     * 不压缩
      */
     NONE((byte) 0),
 
     /**
      * The gzip.
+     * 使用 gzip
      */
     GZIP((byte) 1);
 

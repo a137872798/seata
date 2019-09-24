@@ -20,11 +20,13 @@ package io.seata.core.codec;
  *
  * @author zhangsen
  * @date 2019 /5/6
+ * seata 的 编解码接口
  */
 public interface Codec {
 
     /**
      * Encode object to byte[].
+     * 将对象序列化
      *
      * @param <T> the type parameter
      * @param t   the t
@@ -34,6 +36,7 @@ public interface Codec {
 
     /**
      * Decode t from byte[].
+     * 反序列化
      *
      * @param <T>   the type parameter
      * @param bytes the bytes
