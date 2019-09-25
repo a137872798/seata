@@ -22,13 +22,18 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Default channel pool handler.
- *
+ * channel 池处理器
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /9/10
  */
 public class DefaultChannelPoolHandler extends AbstractChannelPoolHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultChannelPoolHandler.class);
 
+    /**
+     * 当channel 创建时触发
+     * @param ch
+     * @throws Exception
+     */
     @Override
     public void channelCreated(Channel ch) throws Exception {
 

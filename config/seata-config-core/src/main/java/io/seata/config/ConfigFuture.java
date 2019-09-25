@@ -26,12 +26,16 @@ import org.slf4j.LoggerFactory;
  *
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /12/20
+ * 异步配置对象
  */
 public class ConfigFuture {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConfigFuture.class);
     private static final long DEFAULT_CONFIG_TIMEOUT = 5 * 1000;
     private long timeoutMills;
     private long start = System.currentTimeMillis();
+    /**
+     * 获取的结果
+     */
     private volatile Object result;
     private String dataId;
     private String content;
@@ -66,7 +70,7 @@ public class ConfigFuture {
 
     /**
      * Gets timeout mills.
-     *
+     * 判断拉取配置时间是否超时
      * @return the timeout mills
      */
     public boolean isTimeout() {
@@ -185,6 +189,7 @@ public class ConfigFuture {
 
     /**
      * The enum Config operation.
+     * 配置中心的操作
      */
     public enum ConfigOperation {
         /**

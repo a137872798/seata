@@ -19,14 +19,14 @@ import io.netty.channel.Channel;
 
 /**
  * The interface Channel event listener.
- *
+ * channel 事件监听对象
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /9/12
  */
 public interface ChannelEventListener {
     /**
      * On channel connect.
-     *
+     * 当channel 连接到某个地址时触发
      * @param remoteAddr the remote addr
      * @param channel    the channel
      */
@@ -34,7 +34,7 @@ public interface ChannelEventListener {
 
     /**
      * On channel close.
-     *
+     * 当channel 关闭时触发
      * @param remoteAddr the remote addr
      * @param channel    the channel
      */
@@ -42,7 +42,7 @@ public interface ChannelEventListener {
 
     /**
      * On channel exception.
-     *
+     * channel 异常时触发
      * @param remoteAddr the remote addr
      * @param channel    the channel
      */
@@ -50,7 +50,7 @@ public interface ChannelEventListener {
 
     /**
      * On channel idle.
-     *
+     * channel  空闲时触发
      * @param remoteAddr the remote addr
      * @param channel    the channel
      */

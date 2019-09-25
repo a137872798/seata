@@ -22,7 +22,7 @@ import io.netty.util.concurrent.Future;
 
 /**
  * The interface Channel auth health checker.
- *
+ * 检查channel 是否健康的对象
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /9/25
  */

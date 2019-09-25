@@ -51,7 +51,7 @@ import static io.seata.common.exception.FrameworkErrorCode.NoAvailableService;
 
 /**
  * The type Rpc remoting client.
- *
+ * 客户端
  * @author jimin.jm @alibaba-inc.com
  * @author zhaojun
  * @date 2018 /9/12
@@ -68,21 +68,42 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
     
     private static final int MAX_MERGE_SEND_THREAD = 1;
     private static final long KEEP_ALIVE_TIME = Integer.MAX_VALUE;
+    /**
+     * 定时器扫描间隔
+     */
     private static final int SCHEDULE_INTERVAL_MILLS = 5;
     private static final String MERGE_THREAD_PREFIX = "rpcMergeMessageSend";
-    
+
+    /**
+     * 客户端引导对象 用于连接到 server
+     */
     private final RpcClientBootstrap clientBootstrap;
+    /**
+     * 管理 该client 连接的所有server
+     */
     private NettyClientChannelManager clientChannelManager;
+    /**
+     * 客户端消息监听器
+     */
     private ClientMessageListener clientMessageListener;
+    /**
+     * 角色信息 有 RM TM SERVER
+     */
     private final NettyPoolKey.TransactionRole transactionRole;
+    /**
+     * 用于merge 消息的线程池对象
+     */
     private ExecutorService mergeSendExecutorService;
     
     public AbstractRpcRemotingClient(NettyClientConfig nettyClientConfig, EventExecutorGroup eventExecutorGroup,
                                      ThreadPoolExecutor messageExecutor, NettyPoolKey.TransactionRole transactionRole) {
         super(messageExecutor);
         this.transactionRole = transactionRole;
+        // 使用给定的config 去初始化 bootstrap 对象  注意本对象也是一个 channelHandler 对象 (因为继承自 ChannelDuplexHandler)
         clientBootstrap = new RpcClientBootstrap(nettyClientConfig, eventExecutorGroup, this, transactionRole);
+        // 生成channel 管理对象
         clientChannelManager = new NettyClientChannelManager(
+                // 使用一个池化工厂
             new NettyPoolableFactory(this, clientBootstrap), getPoolKeyFunction(), nettyClientConfig);
     }
     
@@ -92,115 +113,161 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
     
     /**
      * Get pool key function.
-     *
+     * 池化的 fun
      * @return lambda function
      */
     protected abstract Function<String, NettyPoolKey> getPoolKeyFunction();
     
     /**
      * Get transaction service group.
-     *
+     * 获取事务组
      * @return transaction service group
      */
     protected abstract String getTransactionServiceGroup();
 
     @Override
     public void init() {
+        // 启动bootstrap 连接到 server
         clientBootstrap.start();
+        // 启动定时器
         timerExecutor.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
+                // 定时重连???
                 clientChannelManager.reconnect(getTransactionServiceGroup());
             }
         }, SCHEDULE_INTERVAL_MILLS, SCHEDULE_INTERVAL_MILLS, TimeUnit.SECONDS);
+        // 开启一个 merge 消息的线程池对象
         mergeSendExecutorService = new ThreadPoolExecutor(MAX_MERGE_SEND_THREAD,
             MAX_MERGE_SEND_THREAD,
             KEEP_ALIVE_TIME, TimeUnit.MILLISECONDS,
             new LinkedBlockingQueue<>(),
             new NamedThreadFactory(getThreadPrefix(), MAX_MERGE_SEND_THREAD));
+        // 启动任务
         mergeSendExecutorService.submit(new MergedSendRunnable());
+        // 开启定时器扫描future 中没有结果的对象 并关闭
         super.init();
     }
-    
+
+    /**
+     * 关闭连接 以及定时器
+     */
     @Override
     public void destroy() {
         clientBootstrap.shutdown();
         mergeSendExecutorService.shutdown();
     }
-    
+
+    /**
+     * 当接受到读事件时触发
+     * 为什么这里只处理 响应方的消息 代表着client 这层的抽象只能发送请求消息 而server 这层抽象代表接受client 的消息并返回响应消息
+     * @param ctx
+     * @param msg
+     * @throws Exception
+     */
     @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
         if (!(msg instanceof RpcMessage)) {
             return;
         }
         RpcMessage rpcMessage = (RpcMessage) msg;
+        // 如果收到心跳消息 在这层进行拦截 记得 dubbo 是使用了多层去拦截 有层是专门用于处理HeartBeat 的
+        // 这里要注意下 如果没有收到心跳是如何处理的
         if (rpcMessage.getBody() == HeartbeatMessage.PONG) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("received PONG from {}", ctx.channel().remoteAddress());
             }
             return;
         }
+        // 如果是整合的消息
         if (rpcMessage.getBody() instanceof MergeResultMessage) {
             MergeResultMessage results = (MergeResultMessage) rpcMessage.getBody();
+            // 从消息池中移除掉 merge 消息
             MergedWarpMessage mergeMessage = (MergedWarpMessage) mergeMsgMap.remove(rpcMessage.getId());
             for (int i = 0; i < mergeMessage.msgs.size(); i++) {
                 int msgId = mergeMessage.msgIds.get(i);
+                // 拆分后又从 存储单条消息的池中移除
                 MessageFuture future = futures.remove(msgId);
                 if (future == null) {
                     if (LOGGER.isInfoEnabled()) {
                         LOGGER.info("msg: {} is not found in futures.", msgId);
                     }
                 } else {
+                    // 设置结果 并唤醒阻塞的线程(调用 future.get()的线程)
                     future.setResultMessage(results.getMsgs()[i]);
                 }
             }
             return;
         }
+        // 上层就是分发消息 也就是 触发 dispatch方法
         super.channelRead(ctx, msg);
     }
-    
+
+    /**
+     * 当接受到 req RpcMsg 或者 res RpcMsg 时 通过该方法做转发
+     * @param request the request
+     * @param ctx     the ctx
+     */
     @Override
     public void dispatch(RpcMessage request, ChannelHandlerContext ctx) {
+        // 如果存在监听器的情况 使用监听器去处理
         if (clientMessageListener != null) {
             String remoteAddress = NetUtil.toStringAddress(ctx.channel().remoteAddress());
             clientMessageListener.onMessage(request, remoteAddress, this);
         }
     }
 
+    /**
+     * 当channel 失活时触发
+     * @param ctx
+     * @throws Exception
+     */
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        // 如果消息处理线程池已经关闭就 直接返回
         if (messageExecutor.isShutdown()) {
             return;
         }
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("channel inactive: {}", ctx.channel());
         }
+        // 释放channel
         clientChannelManager.releaseChannel(ctx.channel(), NetUtil.toStringAddress(ctx.channel().remoteAddress()));
         super.channelInactive(ctx);
     }
-    
+
+    /**
+     * 用户自定义事件触发 该函数一般是做心跳检测用的
+     * @param ctx
+     * @param evt
+     */
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
         if (evt instanceof IdleStateEvent) {
             IdleStateEvent idleStateEvent = (IdleStateEvent)evt;
+            // 如果是长期没有读取到数据
             if (idleStateEvent.state() == IdleState.READER_IDLE) {
                 if (LOGGER.isInfoEnabled()) {
                     LOGGER.info("channel" + ctx.channel() + " read idle.");
                 }
                 try {
                     String serverAddress = NetUtil.toStringAddress(ctx.channel().remoteAddress());
+                    // 标记某个 channel 已经无效
                     clientChannelManager.invalidateObject(serverAddress, ctx.channel());
                 } catch (Exception exx) {
                     LOGGER.error(exx.getMessage());
                 } finally {
+                    // 某条channel 脱离pool 的管理
                     clientChannelManager.releaseChannel(ctx.channel(), getAddressFromContext(ctx));
                 }
             }
+            // 如果长时间没有触发写操作
             if (idleStateEvent == IdleStateEvent.WRITER_IDLE_STATE_EVENT) {
                 try {
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug("will send ping msg,channel" + ctx.channel());
                     }
+                    // 发送心跳 相当于是被动发送 而不是通过某个定时任务主动去发送
                     sendRequest(ctx.channel(), HeartbeatMessage.PING);
                 } catch (Throwable throwable) {
                     LOGGER.error("send request error: {}", throwable.getMessage(), throwable);
@@ -208,37 +275,74 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
             }
         }
     }
-    
+
+    /**
+     * 捕获异常  父类只是输出一条日志
+     * @param ctx
+     * @param cause
+     * @throws Exception
+     */
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         LOGGER.error(FrameworkErrorCode.ExceptionCaught.getErrCode(),
             NetUtil.toStringAddress(ctx.channel().remoteAddress()) + "connect exception. " + cause.getMessage(), cause);
+        // 释放某条channel
         clientChannelManager.releaseChannel(ctx.channel(), getAddressFromChannel(ctx.channel()));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("remove exception rm channel:" + ctx.channel());
         }
         super.exceptionCaught(ctx, cause);
     }
-    
+
+    /**
+     * 发送消息的对外入口
+     * @param msg     the msg
+     * @param timeout the timeout
+     * @return
+     * @throws TimeoutException
+     */
     @Override
     public Object sendMsgWithResponse(Object msg, long timeout) throws TimeoutException {
+        // 获取 事务组 并使用均衡负载寻找合适的 address
         String validAddress = loadBalance(getTransactionServiceGroup());
+        // 通过 address 寻找channel 对象 没有的话应该会创建一条新的
         Channel channel = clientChannelManager.acquireChannel(validAddress);
+        // 存在超时时间 会阻塞直到 接受到 res  或者超时
         Object result = super.sendAsyncRequestWithResponse(validAddress, channel, msg, timeout);
         return result;
     }
-    
+
+    /**
+     * 发送数据 使用默认的超时时间
+     * @param msg the msg
+     * @return
+     * @throws TimeoutException
+     */
     @Override
     public Object sendMsgWithResponse(Object msg) throws TimeoutException {
         return sendMsgWithResponse(msg, NettyClientConfig.getRpcRequestTimeout());
     }
-    
+
+    /**
+     * 使用直连方式访问
+     * @param serverAddress the server address
+     * @param msg           the msg
+     * @param timeout       the timeout
+     * @return
+     * @throws TimeoutException
+     */
     @Override
     public Object sendMsgWithResponse(String serverAddress, Object msg, long timeout)
         throws TimeoutException {
         return sendAsyncRequestWithResponse(serverAddress, clientChannelManager.acquireChannel(serverAddress), msg, timeout);
     }
-    
+
+    /**
+     * 发送响应结果
+     * @param request       the msg id
+     * @param serverAddress the server address
+     * @param msg           the msg
+     */
     @Override
     public void sendResponse(RpcMessage request, String serverAddress, Object msg) {
         super.sendResponse(request, clientChannelManager.acquireChannel(serverAddress), msg);
@@ -262,14 +366,25 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
         this.clientMessageListener = clientMessageListener;
     }
 
+    /**
+     * 通过channelManager 对象统一管理 channel 这里是关闭某个channel
+     * @param serverAddress the server address
+     * @param channel       the channel
+     */
     @Override
     public void destroyChannel(String serverAddress, Channel channel) {
         clientChannelManager.destroyChannel(serverAddress, channel);
     }
-    
+
+    /**
+     * 根据 事务组 通过均衡负载找到合适的 单台对象 这里肯定是通过注册中心动态获取地址
+     * @param transactionServiceGroup
+     * @return
+     */
     private String loadBalance(String transactionServiceGroup) {
         InetSocketAddress address = null;
         try {
+            // 使用注册中心配合 均衡负载 获取地址
             List<InetSocketAddress> inetSocketAddressList = RegistryFactory.getInstance().lookup(transactionServiceGroup);
             address = LoadBalanceFactory.getInstance().select(inetSocketAddressList);
         } catch (Exception ex) {
@@ -287,36 +402,45 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
 
     /**
      * The type Merged send runnable.
+     * 用于merge 消息的 任务 由一个executor来执行
      */
     private class MergedSendRunnable implements Runnable {
 
         @Override
         public void run() {
+            // 保证任务不退出
             while (true) {
                 synchronized (mergeLock) {
                     try {
+                        // 等待唤醒  当发送某个消息后 会唤醒该线程
+                        // 就会立即发送消息
                         mergeLock.wait(MAX_MERGE_SEND_MILLS);
                     } catch (InterruptedException e) {
                     }
                 }
                 isSending = true;
+                // 开始遍历桶中的数据
                 for (String address : basketMap.keySet()) {
                     BlockingQueue<RpcMessage> basket = basketMap.get(address);
                     if (basket.isEmpty()) {
                         continue;
                     }
 
+                    // 将对应地址中所有消息 整合成一条 并发送
                     MergedWarpMessage mergeMessage = new MergedWarpMessage();
                     while (!basket.isEmpty()) {
+                        // 不断从阻塞队列中拉取消息 并整合到 mergeMsg 中
                         RpcMessage msg = basket.poll();
                         mergeMessage.msgs.add((AbstractMessage) msg.getBody());
                         mergeMessage.msgIds.add(msg.getId());
                     }
+                    // 打印消息
                     if (mergeMessage.msgIds.size() > 1) {
                         printMergeMessageLog(mergeMessage);
                     }
                     Channel sendChannel = null;
                     try {
+                        // 获取地址并发送消息  这里没有阻塞
                         sendChannel = clientChannelManager.acquireChannel(address);
                         sendRequest(sendChannel, mergeMessage);
                     } catch (FrameworkException e) {

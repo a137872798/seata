@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type rpc context.
- *
+ * 一次远程通信的上下文对象
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /12/07
  */
@@ -39,20 +39,43 @@ public class RpcContext {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RpcContext.class);
 
+    /**
+     * 代表 该client 是什么角色 (请求发起方)
+     * role 包含 TM,RM,SERVER
+     */
     private NettyPoolKey.TransactionRole clientRole;
 
+    /**
+     * 本次 远程调用的版本号
+     */
     private String version;
 
+    /**
+     * 标记应用的 唯一标识
+     */
     private String applicationId;
 
+    /**
+     * 该应用所属 事务组
+     */
     private String transactionServiceGroup;
 
+    /**
+     * 该client 的id
+     */
     private String clientId;
 
+    /**
+     * 连接 2端的channel 对象
+     */
     private Channel channel;
 
+    /**
+     * 资源信息  对应 RM
+     */
     private Set<String> resourceSets;
 
+    // 下面这几个容器 都会关联到某些全局容器
     /**
      * id
      */
@@ -70,22 +93,27 @@ public class RpcContext {
 
     /**
      * Release.
+     * 释放上下文内包含的channel 对象
      */
     public void release() {
+        // 获取 channel 的远端端口
         Integer clientPort = getClientPortFromChannel(channel);
         if (clientIDHolderMap != null) {
             clientIDHolderMap = null;
         }
+        // 使用对应的 map
         if (clientRole == NettyPoolKey.TransactionRole.TMROLE && clientTMHolderMap != null) {
             clientTMHolderMap.remove(clientPort);
             clientTMHolderMap = null;
         }
+        // 情况 RM map
         if (clientRole == NettyPoolKey.TransactionRole.RMROLE && clientRMHolderMap != null) {
             for (Map<Integer, RpcContext> portMap : clientRMHolderMap.values()) {
                 portMap.remove(clientPort);
             }
             clientRMHolderMap = null;
         }
+        // 情况 resourceSet
         if (null != resourceSets) {
             resourceSets.clear();
         }
@@ -93,6 +121,7 @@ public class RpcContext {
 
     /**
      * Hold in client channels.
+     * 约束 客户端channel 干啥用的???
      *
      * @param clientTMHolderMap the client tm holder map
      */
@@ -102,12 +131,13 @@ public class RpcContext {
         }
         this.clientTMHolderMap = clientTMHolderMap;
         Integer clientPort = getClientPortFromChannel(channel);
+        // 获取本channel 对象 并设置到 Tm 容器中
         this.clientTMHolderMap.put(clientPort, this);
     }
 
     /**
      * Hold in identified channels.
-     *
+     * 将数据填充到 idMap中
      * @param clientIDHolderMap the client id holder map
      */
     public void holdInIdentifiedChannels(ConcurrentMap<Channel, RpcContext> clientIDHolderMap) {
@@ -120,7 +150,7 @@ public class RpcContext {
 
     /**
      * Hold in resource manager channels.
-     *
+     * 将数据填充到 rm中
      * @param resourceId the resource id
      * @param portMap    the client rm holder map
      */
@@ -266,6 +296,11 @@ public class RpcContext {
         this.version = version;
     }
 
+    /**
+     * 从channel 上获取 远端地址信息
+     * @param channel
+     * @return
+     */
     private static String getAddressFromChannel(Channel channel) {
         SocketAddress socketAddress = channel.remoteAddress();
         String address = socketAddress.toString();
@@ -275,10 +310,16 @@ public class RpcContext {
         return address;
     }
 
+    /**
+     * 从channel 上获取端口信息
+     * @param channel
+     * @return
+     */
     private static Integer getClientPortFromChannel(Channel channel) {
         String address = getAddressFromChannel(channel);
         Integer port = 0;
         try {
+            // 如果存在 ":" 获取后面那部分作为 port
             if (address.contains(Constants.IP_PORT_SPLIT_CHAR)) {
                 port = Integer.parseInt(address.substring(address.lastIndexOf(Constants.IP_PORT_SPLIT_CHAR) + 1));
             }

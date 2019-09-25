@@ -42,14 +42,25 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Default server message listener.
- *
+ * 默认的 服务器消息监听器实现类
+ * 能够处理 RegTm RegRm 心跳等消息 处理后并返回res 消息 （实际上就是加入到一个全局容器中）
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /10/18
  */
 public class DefaultServerMessageListenerImpl implements ServerMessageListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultServerMessageListenerImpl.class);
+
+    /**
+     * 待处理的消息
+     */
     private static BlockingQueue<String> messageStrings = new LinkedBlockingQueue<String>();
+    /**
+     * 消息发送者
+     */
     private ServerMessageSender serverMessageSender;
+    /**
+     * 事务消息处理器
+     */
     private final TransactionMessageHandler transactionMessageHandler;
     private static final int MAX_LOG_SEND_THREAD = 1;
     private static final long KEEP_ALIVE_TIME = 0L;
@@ -66,42 +77,66 @@ public class DefaultServerMessageListenerImpl implements ServerMessageListener {
         this.transactionMessageHandler = transactionMessageHandler;
     }
 
+    /**
+     * 当接受到 事务消息时
+     * @param request the msg id
+     * @param ctx     the ctx
+     * @param sender  the sender
+     */
     @Override
     public void onTrxMessage(RpcMessage request, ChannelHandlerContext ctx, ServerMessageSender sender) {
         Object message = request.getBody();
+        // 通过 channel 找到对应的 RpcContext 上下文对象
         RpcContext rpcContext = ChannelManager.getContextFromIdentified(ctx.channel());
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(
                 "server received:" + message + ",clientIp:" + NetUtil.toIpAddress(ctx.channel().remoteAddress())
                     + ",vgroup:" + rpcContext.getTransactionServiceGroup());
         } else {
+            // 不能debug 进入队列是什么意思???
             messageStrings.offer(
                 message + ",clientIp:" + NetUtil.toIpAddress(ctx.channel().remoteAddress()) + ",vgroup:" + rpcContext
                     .getTransactionServiceGroup());
         }
         if (!(message instanceof AbstractMessage)) { return; }
+        // 这里怎么能保证进入下面 一定是 响应消息呢 ???
+        // 如果是组合消息
         if (message instanceof MergedWarpMessage) {
             AbstractResultMessage[] results = new AbstractResultMessage[((MergedWarpMessage)message).msgs.size()];
             for (int i = 0; i < results.length; i++) {
                 final AbstractMessage subMessage = ((MergedWarpMessage)message).msgs.get(i);
+                // 转发到事务消息处理器 进行处理  并设置结果
                 results[i] = transactionMessageHandler.onRequest(subMessage, rpcContext);
             }
+            // 设置针对 merge 的响应消息
             MergeResultMessage resultMessage = new MergeResultMessage();
             resultMessage.setMsgs(results);
+            // 将结果返回到 client
             sender.sendResponse(request, ctx.channel(), resultMessage);
+            // 处理响应消息
         } else if (message instanceof AbstractResultMessage) {
             transactionMessageHandler.onResponse((AbstractResultMessage)message, rpcContext);
         }
     }
 
+    /**
+     * 针对rm 消息
+     * @param request          the msg id
+     * @param ctx              the ctx
+     * @param sender           the sender
+     * @param checkAuthHandler the check auth handler
+     */
     @Override
     public void onRegRmMessage(RpcMessage request, ChannelHandlerContext ctx,
                                ServerMessageSender sender, RegisterCheckAuthHandler checkAuthHandler) {
         RegisterRMRequest message = (RegisterRMRequest) request.getBody();
         boolean isSuccess = false;
         try {
+            // 注册校验器不存在 或者 资源校验通过
             if (null == checkAuthHandler || checkAuthHandler.regResourceManagerCheckAuth(message)) {
+                // 将消息和 channel 注册上去  就是将关联关系保存到全局容器中
                 ChannelManager.registerRMChannel(message, ctx.channel());
+                // 维护 channel 和版本信息
                 Version.putChannelVersion(ctx.channel(), message.getVersion());
                 isSuccess = true;
             }
@@ -109,12 +144,20 @@ public class DefaultServerMessageListenerImpl implements ServerMessageListener {
             isSuccess = false;
             LOGGER.error(exx.getMessage());
         }
+        // 生成响应信息并返回
         sender.sendResponse(request, ctx.channel(), new RegisterRMResponse(isSuccess));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("rm register success,message:" + message + ",channel:" + ctx.channel());
         }
     }
 
+    /**
+     * 处理 注册到TM 上的消息
+     * @param request          the msg id
+     * @param ctx              the ctx
+     * @param sender           the sender
+     * @param checkAuthHandler the check auth handler
+     */
     @Override
     public void onRegTmMessage(RpcMessage request, ChannelHandlerContext ctx,
                                ServerMessageSender sender, RegisterCheckAuthHandler checkAuthHandler) {
@@ -137,11 +180,18 @@ public class DefaultServerMessageListenerImpl implements ServerMessageListener {
             isSuccess = false;
             LOGGER.error(exx.getMessage());
         }
+        // 啥意思啊???
         //FIXME please add success or fail
         sender.sendResponse(request, ctx.channel(),
             new RegisterTMResponse(isSuccess));
     }
 
+    /**
+     * 代表处理心跳消息 那就直接返回 Pong 消息
+     * @param request the msg id
+     * @param ctx     the ctx
+     * @param sender  the sender
+     */
     @Override
     public void onCheckMessage(RpcMessage request, ChannelHandlerContext ctx, ServerMessageSender sender) {
         try {
@@ -155,18 +205,20 @@ public class DefaultServerMessageListenerImpl implements ServerMessageListener {
     }
 
     /**
+     * 进行初始化
      * Init.
      */
     public void init() {
         ExecutorService mergeSendExecutorService = new ThreadPoolExecutor(MAX_LOG_SEND_THREAD, MAX_LOG_SEND_THREAD,
             KEEP_ALIVE_TIME, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
             new NamedThreadFactory(THREAD_PREFIX, MAX_LOG_SEND_THREAD, true));
+        // 执行打印日志的任务
         mergeSendExecutorService.submit(new BatchLogRunnable());
     }
 
     /**
      * Gets server message sender.
-     *
+     * 获取在server 端发送消息的对象
      * @return the server message sender
      */
     public ServerMessageSender getServerMessageSender() {
@@ -184,12 +236,14 @@ public class DefaultServerMessageListenerImpl implements ServerMessageListener {
 
     /**
      * The type Batch log runnable.
+     * 一个打印日志的任务
      */
     class BatchLogRunnable implements Runnable {
 
         @Override
         public void run() {
             while (true) {
+                // 之前 如果 Logger.isDebugabled() == false 就会将日志加到该阻塞队列中 看来是在这里做异步打印
                 if (messageStrings.size() > 0) {
                     StringBuilder builder = new StringBuilder();
                     while (!messageStrings.isEmpty()) {

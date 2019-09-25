@@ -17,7 +17,7 @@ package io.seata.core.rpc;
 
 /**
  * The interface Remoting service.
- *
+ * 代表用于通信的对象 都具备 启动和关闭接口
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /9/5
  */

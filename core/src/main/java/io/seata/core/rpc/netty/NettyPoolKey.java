@@ -19,13 +19,18 @@ import io.seata.core.protocol.AbstractMessage;
 
 /**
  * The type Netty pool key.
- *
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /11/29
  */
 public class NettyPoolKey {
 
+    /**
+     * 当前channel 连接的是什么事务角色
+     */
     private TransactionRole transactionRole;
+    /**
+     * channel 的remote 地址
+     */
     private String address;
     private AbstractMessage message;
 

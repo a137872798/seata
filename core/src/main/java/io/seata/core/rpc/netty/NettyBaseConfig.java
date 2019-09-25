@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Netty base config.
- *
+ * netty 的基础配置对象 不细看
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /12/24
  */

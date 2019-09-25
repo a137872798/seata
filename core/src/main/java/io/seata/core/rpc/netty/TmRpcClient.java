@@ -38,12 +38,12 @@ import java.util.function.Function;
 
 /**
  * The type Rpc client.
- *
+ * TM 客户端对象 推测 RM 和 TM 都是 client
  * @author jimin.jm @alibaba-inc.com
  * @author zhaojun
  * @date 2018 /10/23
  */
-@Sharable
+@Sharable   // @Sharable 代表该 channelHandler 可以添加到多个pipeline 中 注意client 对象的最上层就是一个 channelHandler 对象
 public final class TmRpcClient extends AbstractRpcRemotingClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(TmRpcClient.class);
     private static volatile TmRpcClient instance;

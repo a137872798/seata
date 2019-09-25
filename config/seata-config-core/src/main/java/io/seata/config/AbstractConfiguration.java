@@ -26,14 +26,23 @@ import java.time.Duration;
  * @param <T> the type parameter
  * @author jimin.jm @alibaba-inc.com
  * @date 2019 /2/1
+ * 配置中心骨架类  对接apoll 等第三方配置框架
  */
 public abstract class AbstractConfiguration<T> implements Configuration<T> {
 
     /**
      * The constant DEFAULT_CONFIG_TIMEOUT.
+     * 应该是每过这么多时间去配置中心拉取一次数据
      */
     protected static final long DEFAULT_CONFIG_TIMEOUT = 5 * 1000;
 
+    /**
+     * 核心方法都是 getConfig 只是这里做了强转
+     * @param dataId       the data id
+     * @param defaultValue the default value
+     * @param timeoutMills the timeout mills
+     * @return
+     */
     @Override
     public short getShort(String dataId, int defaultValue, long timeoutMills) {
         String result = getConfig(dataId, String.valueOf(defaultValue), timeoutMills);

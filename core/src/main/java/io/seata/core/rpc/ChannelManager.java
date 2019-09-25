@@ -37,18 +37,22 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * The type channel manager.
- *
+ * channel 管理器对象   不细看了 大体逻辑都一样
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /12/07
  */
 public class ChannelManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ChannelManager.class);
+    /**
+     * 每个channel 对应一个 RpcContext 对象 这里是全局容器
+     */
     private static final ConcurrentMap<Channel, RpcContext> IDENTIFIED_CHANNELS
         = new ConcurrentHashMap<Channel, RpcContext>();
 
     /**
      * resourceId -> applicationId -> ip -> port -> RpcContext
+     * 这么多层key ...
      */
     private static final ConcurrentMap<String, ConcurrentMap<String, ConcurrentMap<String, ConcurrentMap<Integer,
         RpcContext>>>>
@@ -63,7 +67,7 @@ public class ChannelManager {
 
     /**
      * Is registered boolean.
-     *
+     * 判断某个channel 是否已经注册
      * @param channel the channel
      * @return the boolean
      */
@@ -73,7 +77,7 @@ public class ChannelManager {
 
     /**
      * Gets get role from channel.
-     *
+     * 指定channel 从 CM中找到对应的角色  可能是 server TM RM
      * @param channel the channel
      * @return the get role from channel
      */
@@ -86,7 +90,7 @@ public class ChannelManager {
 
     /**
      * Gets get context from identified.
-     *
+     * 获取channel对应的唯一标识
      * @param channel the channel
      * @return the get context from identified
      */
@@ -94,14 +98,35 @@ public class ChannelManager {
         return IDENTIFIED_CHANNELS.get(channel);
     }
 
+    /**
+     * 生成clientId  通过组合 applicationId 和 channel地址
+     * @param applicationId
+     * @param channel
+     * @return
+     */
     private static String buildClientId(String applicationId, Channel channel) {
         return applicationId + Constants.CLIENT_ID_SPLIT_CHAR + getAddressFromChannel(channel);
     }
 
+    /**
+     * 将clientId 还原成 applicationId 和 channelAddress
+     * @param clientId
+     * @return
+     */
     private static String[] readClientId(String clientId) {
         return clientId.split(Constants.CLIENT_ID_SPLIT_CHAR);
     }
 
+    /**
+     * 将信息保存到 RpcContext 中
+     * @param clientRole
+     * @param version
+     * @param applicationId
+     * @param txServiceGroup
+     * @param dbkeys
+     * @param channel
+     * @return
+     */
     private static RpcContext buildChannelHolder(NettyPoolKey.TransactionRole clientRole, String version, String applicationId,
                                                  String txServiceGroup, String dbkeys, Channel channel) {
         RpcContext holder = new RpcContext();
@@ -110,6 +135,7 @@ public class ChannelManager {
         holder.setClientId(buildClientId(applicationId, channel));
         holder.setApplicationId(applicationId);
         holder.setTransactionServiceGroup(txServiceGroup);
+        // dbKeys 是什么 这里转换成 resource 并保存到set中
         holder.addResources(dbKeytoSet(dbkeys));
         holder.setChannel(channel);
         return holder;
@@ -117,7 +143,7 @@ public class ChannelManager {
 
     /**
      * Register tm channel.
-     *
+     * 注册 TM channel
      * @param request the request
      * @param channel the channel
      * @throws IncompatibleVersionException the incompatible version exception
@@ -125,21 +151,24 @@ public class ChannelManager {
     public static void registerTMChannel(RegisterTMRequest request, Channel channel)
         throws IncompatibleVersionException {
         Version.checkVersion(request.getVersion());
+        // 将信息抽象成 RpcContext
         RpcContext rpcContext = buildChannelHolder(NettyPoolKey.TransactionRole.TMROLE, request.getVersion(),
             request.getApplicationId(),
             request.getTransactionServiceGroup(),
             null, channel);
+        // 这里传入全局变量 然后将 RpcContext 的信息转移进去
         rpcContext.holdInIdentifiedChannels(IDENTIFIED_CHANNELS);
         String clientIdentified = rpcContext.getApplicationId() + Constants.CLIENT_ID_SPLIT_CHAR
             + getClientIpFromChannel(channel);
         TM_CHANNELS.putIfAbsent(clientIdentified, new ConcurrentHashMap<Integer, RpcContext>());
         ConcurrentMap<Integer, RpcContext> clientIdentifiedMap = TM_CHANNELS.get(clientIdentified);
+        // 将信息设置到 该容器中
         rpcContext.holdInClientChannels(clientIdentifiedMap);
     }
 
     /**
      * Register rm channel.
-     *
+     * 注册RmChannel 套路大体和上面一样
      * @param resourceManagerRequest the resource manager request
      * @param channel                the channel
      * @throws IncompatibleVersionException the incompatible  version exception
@@ -225,6 +254,11 @@ public class ChannelManager {
         return port;
     }
 
+    /**
+     * 使用 "," 拆分
+     * @param dbkey
+     * @return
+     */
     private static Set<String> dbKeytoSet(String dbkey) {
         if (StringUtils.isNullOrEmpty(dbkey)) {
             return null;

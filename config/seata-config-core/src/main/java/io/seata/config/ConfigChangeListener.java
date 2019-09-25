@@ -22,11 +22,13 @@ import java.util.concurrent.ExecutorService;
  *
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /12/20
+ * 当配置发生变化时的监听器对象
  */
 public interface ConfigChangeListener {
 
     /**
      * Gets executor.
+     * 获取执行监听器的线程池
      *
      * @return the executor
      */
@@ -36,6 +38,7 @@ public interface ConfigChangeListener {
      * Receive config info.
      *
      * @param configInfo the config info
+     *                   当收到配置信息时触发
      */
     void receiveConfigInfo(final String configInfo);
 }

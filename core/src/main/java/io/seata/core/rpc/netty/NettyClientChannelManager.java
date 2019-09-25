@@ -35,26 +35,48 @@ import java.util.function.Function;
 
 /**
  * Netty client pool manager.
- *
+ * 客户端连接池管理
  * @author jimin.jm @alibaba-inc.com
  * @author zhaojun
  */
 class NettyClientChannelManager {
     
     private static final Logger LOGGER = LoggerFactory.getLogger(NettyClientChannelManager.class);
-    
+
+    /**
+     * key: address value: 对应的 锁对象
+     */
     private final ConcurrentMap<String, Object> channelLocks = new ConcurrentHashMap<>();
-    
+
+    /**
+     * key: address value: 事务角色信息
+     */
     private final ConcurrentMap<String, NettyPoolKey> poolKeyMap = new ConcurrentHashMap<>();
-    
+
+    /**
+     * address -> channel
+     */
     private final ConcurrentMap<String, Channel> channels = new ConcurrentHashMap<>();
-    
+
+    /**
+     * 事务信息 对应channel 先不细看 推测是一个map
+     */
     private final GenericKeyedObjectPool<NettyPoolKey, Channel> nettyClientKeyPool;
-    
+
+    /**
+     * 这个fun 是干嘛的
+     */
     private Function<String, NettyPoolKey> poolKeyFunction;
-    
+
+    /**
+     * 初始化
+     * @param keyPoolableFactory
+     * @param poolKeyFunction
+     * @param clientConfig
+     */
     NettyClientChannelManager(final NettyPoolableFactory keyPoolableFactory, final Function<String, NettyPoolKey> poolKeyFunction,
                                      final NettyClientConfig clientConfig) {
+        // 使用池化工厂进行初始化
         nettyClientKeyPool = new GenericKeyedObjectPool<>(keyPoolableFactory);
         nettyClientKeyPool.setConfig(getNettyPoolConfig(clientConfig));
         this.poolKeyFunction = poolKeyFunction;
@@ -175,11 +197,22 @@ class NettyClientChannelManager {
             }
         }
     }
-    
+
+    /**
+     * 标记某个 channel 已经无效了
+     * @param serverAddress
+     * @param channel
+     * @throws Exception
+     */
     void invalidateObject(final String serverAddress, final Channel channel) throws Exception {
         nettyClientKeyPool.invalidateObject(poolKeyMap.get(serverAddress), channel);
     }
-    
+
+    /**
+     * 注册某个channel
+     * @param serverAddress
+     * @param channel
+     */
     void registerChannel(final String serverAddress, final Channel channel) {
         if (null != channels.get(serverAddress) && channels.get(serverAddress).isActive()) {
             return;

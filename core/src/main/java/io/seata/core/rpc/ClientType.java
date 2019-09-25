@@ -17,7 +17,7 @@ package io.seata.core.rpc;
 
 /**
  * The enum Client type.
- *
+ * 客户端类型 有 TM 和 RM
  * @author jimin.jm @alibaba-inc.com
  */
 public enum ClientType {

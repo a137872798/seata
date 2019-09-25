@@ -28,16 +28,22 @@ import java.net.InetSocketAddress;
 
 /**
  * The type Netty key poolable factory.
- *
+ * 池化工厂
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /11/19
  */
 public class NettyPoolableFactory implements KeyedPoolableObjectFactory<NettyPoolKey, Channel> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NettyPoolableFactory.class);
-    
+
+    /**
+     * client 对象
+     */
     private final AbstractRpcRemotingClient rpcRemotingClient;
-    
+
+    /**
+     * client 对应的 启动对象
+     */
     private final RpcClientBootstrap clientBootstrap;
 
     /**

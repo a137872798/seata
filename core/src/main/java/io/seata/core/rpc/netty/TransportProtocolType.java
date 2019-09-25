@@ -17,18 +17,20 @@ package io.seata.core.rpc.netty;
 
 /**
  * The enum Transport protocol type.
- *
+ * 数据传输类型
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /9/10
  */
 public enum TransportProtocolType {
     /**
      * Tcp transport protocol type.
+     * 基于 TCP
      */
     TCP("tcp"),
 
     /**
      * Udt transport protocol type.
+     * 基于 UDT
      */
     UDT("udt"),
     /**

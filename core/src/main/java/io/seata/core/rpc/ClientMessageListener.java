@@ -19,14 +19,14 @@ import io.seata.core.protocol.RpcMessage;
 
 /**
  * The interface Client message listener.
- *
+ * 消息监听器
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /10/10
  */
 public interface ClientMessageListener {
     /**
      * On message.
-     *
+     * 当接受到消息时做处理
      * @param request       the msg id
      * @param serverAddress the server address
      * @param sender        the sender

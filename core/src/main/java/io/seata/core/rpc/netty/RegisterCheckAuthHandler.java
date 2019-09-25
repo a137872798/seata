@@ -20,6 +20,8 @@ import io.seata.core.protocol.RegisterTMRequest;
 
 /**
  * The interface Register check auth handler.
+ * <p>
+ * 注册权限校验器
  *
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /12/7
@@ -28,6 +30,7 @@ public interface RegisterCheckAuthHandler {
 
     /**
      * Reg transaction manager check auth boolean.
+     * 注册到TM 的权限校验器
      *
      * @param request the request
      * @return the boolean
@@ -36,6 +39,7 @@ public interface RegisterCheckAuthHandler {
 
     /**
      * Reg resource manager check auth boolean.
+     * 注册到RM 的权限校验器
      *
      * @param request the request
      * @return the boolean

@@ -20,7 +20,7 @@ import io.seata.core.protocol.AbstractMessage;
 
 /**
  * The interface Register msg listener.
- *
+ * 针对注册消息的 监听器
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /11/29
  */
@@ -28,7 +28,7 @@ public interface RegisterMsgListener {
 
     /**
      * On register msg success.
-     *
+     * 注册消息成功时
      * @param serverAddress  the server address
      * @param channel        the channel
      * @param response       the response
@@ -38,7 +38,7 @@ public interface RegisterMsgListener {
 
     /**
      * On register msg fail.
-     *
+     * 注册消息失败时
      * @param serverAddress  the server address
      * @param channel        the channel
      * @param response       the response

@@ -17,17 +17,19 @@ package io.seata.core.rpc.netty;
 
 /**
  * The enum Transport server type.
- *
+ * 服务端传输类型
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /9/10
  */
 public enum TransportServerType {
     /**
      * Native transport server type.
+     * 啥意思啊 代表client 和server 在同一台机器上吗???
      */
     NATIVE("native"),
     /**
      * Nio transport server type.
+     * 使用 nio 进行通信
      */
     NIO("nio");
 

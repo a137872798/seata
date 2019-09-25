@@ -20,10 +20,12 @@ package io.seata.config;
  *
  * @author jimin.jm @alibaba-inc.com
  * @date 2019 /2/1
+ * 配置类型
  */
 public enum ConfigType {
     /**
      * File config type.
+     * 文件系统配置
      */
     File,
     /**

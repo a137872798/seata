@@ -24,7 +24,7 @@ import io.seata.core.protocol.RpcMessage;
 
 /**
  * The interface Server message sender.
- *
+ * 消息发送接口
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /10/15
  */
@@ -32,7 +32,7 @@ public interface ServerMessageSender {
 
     /**
      * Send response.
-     *
+     * 服务端发送请求到 client
      * @param request the request
      * @param channel the channel
      * @param msg     the msg
@@ -41,7 +41,7 @@ public interface ServerMessageSender {
 
     /**
      * Sync call to RM with timeout.
-     *
+     * 同步发送到RM 上
      * @param resourceId Resource ID
      * @param clientId   Client ID
      * @param message    Request message
@@ -55,7 +55,7 @@ public interface ServerMessageSender {
 
     /**
      * Sync call to RM
-     *
+     * 非超时发送
      * @param resourceId Resource ID
      * @param clientId   Client ID
      * @param message    Request message
@@ -68,7 +68,7 @@ public interface ServerMessageSender {
 
     /**
      * ASync call to RM
-     *
+     * 异步发送
      * @param channel   channel
      * @param message    Request message
      * @return Response message

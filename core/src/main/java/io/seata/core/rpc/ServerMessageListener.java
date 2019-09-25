@@ -21,6 +21,7 @@ import io.seata.core.rpc.netty.RegisterCheckAuthHandler;
 
 /**
  * The interface Server message listener.
+ * 针对 服务端消息的监听器
  *
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /10/15
@@ -29,6 +30,7 @@ public interface ServerMessageListener {
 
     /**
      * On trx message.
+     * 当接受到 事务消息时触发
      *
      * @param request the msg id
      * @param ctx     the ctx
@@ -38,6 +40,7 @@ public interface ServerMessageListener {
 
     /**
      * On reg rm message.
+     * 针对注册 rm 消息时触发
      *
      * @param request          the msg id
      * @param ctx              the ctx
@@ -49,6 +52,7 @@ public interface ServerMessageListener {
 
     /**
      * On reg tm message.
+     * 针对注册 tm 消息时触发
      *
      * @param request          the msg id
      * @param ctx              the ctx
@@ -60,6 +64,7 @@ public interface ServerMessageListener {
 
     /**
      * On check message.
+     * 心跳检测
      *
      * @param request the msg id
      * @param ctx     the ctx

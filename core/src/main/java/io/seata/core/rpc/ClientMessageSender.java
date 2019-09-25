@@ -21,14 +21,14 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * The interface Client message sender.
- *
+ * 客户端发送消息的抽象
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /10/10
  */
 public interface ClientMessageSender {
     /**
      * Send msg with response object.
-     *
+     * 发送消息 并等待 响应结果
      * @param msg     the msg
      * @param timeout the timeout
      * @return the object
@@ -38,6 +38,7 @@ public interface ClientMessageSender {
 
     /**
      * Send msg with response object.
+     * 同上 不过指定了 地址
      *
      * @param serverAddress the server address
      * @param msg           the msg
@@ -49,7 +50,7 @@ public interface ClientMessageSender {
 
     /**
      * Send msg with response object.
-     *
+     * 没有指定超时时间
      * @param msg the msg
      * @return the object
      * @throws TimeoutException the timeout exception

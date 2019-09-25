@@ -86,7 +86,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
     protected final ConcurrentHashMap<Integer, MessageFuture> futures = new ConcurrentHashMap<>();
     /**
      * The Basket map.
-     * 该容器是干嘛用的???
+     * key: address value: 应该是对应要发送到该地址的rpc消息
      */
     protected final ConcurrentHashMap<String, BlockingQueue<RpcMessage>> basketMap = new ConcurrentHashMap<>();
 
@@ -197,6 +197,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
     public void channelWritabilityChanged(ChannelHandlerContext ctx) {
         synchronized (lock) {
             // 如果变成了可写状态 唤醒阻塞的其他lock
+            // 当尝试发送消息时 如果当前channel 不可写会进入阻塞状态 等待这里唤醒它们
             if (ctx.channel().isWritable()) {
                 lock.notifyAll();
             }
@@ -228,6 +229,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
      * @param timeout the timeout
      * @return the object
      * @throws TimeoutException the timeout exception
+     * 发送异步请求 并返回结果
      */
     protected Object sendAsyncRequestWithResponse(String address, Channel channel, Object msg, long timeout) throws
         TimeoutException {
@@ -239,7 +241,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
 
     /**
      * Send async request without response object.
-     *
+     * 发送异步请求
      * @param channel the channel
      * @param msg     the msg
      * @return the object
@@ -250,6 +252,15 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
         return sendAsyncRequest(null, channel, msg, 0);
     }
 
+    /**
+     * 发送异步请求
+     * @param address
+     * @param channel
+     * @param msg
+     * @param timeout
+     * @return
+     * @throws TimeoutException
+     */
     private Object sendAsyncRequest(String address, Channel channel, Object msg, long timeout)
         throws TimeoutException {
         if (channel == null) {
@@ -257,50 +268,70 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
             return null;
         }
         final RpcMessage rpcMessage = new RpcMessage();
+        // 获取唯一标识
         rpcMessage.setId(getNextMessageId());
+        // 默认设置 oneway 类型 代表不需要返回数据
         rpcMessage.setMessageType(ProtocolConstants.MSGTYPE_RESQUEST_ONEWAY);
+        // 指定序列化方式
         rpcMessage.setCodec(ProtocolConstants.CONFIGURED_CODEC);
+        // 指定是否压缩
         rpcMessage.setCompressor(ProtocolConstants.CONFIGURED_COMPRESSOR);
+        // 将对象作为数据实体
         rpcMessage.setBody(msg);
 
+        // 将本发送对象设置到 futures 中
         final MessageFuture messageFuture = new MessageFuture();
         messageFuture.setRequestMessage(rpcMessage);
         messageFuture.setTimeout(timeout);
         futures.put(rpcMessage.getId(), messageFuture);
 
+        // 如果指定了地址
         if (address != null) {
             ConcurrentHashMap<String, BlockingQueue<RpcMessage>> map = basketMap;
             BlockingQueue<RpcMessage> basket = map.get(address);
+            // 未创建情况下 进行初始化
             if (basket == null) {
                 map.putIfAbsent(address, new LinkedBlockingQueue<>());
                 basket = map.get(address);
             }
+            // 将消息设置到阻塞队列中  应该有个线程池在处理这些消息
             basket.offer(rpcMessage);
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("offer message: " + rpcMessage.getBody());
             }
+            // 未发送情况下 唤醒 merge 锁
             if (!isSending) {
                 synchronized (mergeLock) {
                     mergeLock.notifyAll();
                 }
             }
         } else {
+            // 未指定地址的情况下
             ChannelFuture future;
+            // 先检测 channel 是否可写入  如果不可写入 会阻塞线程 直到被唤醒(也就是变成可写 或者 超过最大重试次数)
             channelWriteableCheck(channel, msg);
+            // 将数据写入到channel中  之后就变成异步操作了 所以发送动作是异步的
             future = channel.writeAndFlush(rpcMessage);
+            // 增加监听器
             future.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) {
+                    // 当失败的情况下
                     if (!future.isSuccess()) {
+                        // 移除掉对应的消息
                         MessageFuture messageFuture = futures.remove(rpcMessage.getId());
                         if (messageFuture != null) {
+                            // 同时唤醒阻塞的线程 (调用get()的线程)
                             messageFuture.setResultMessage(future.cause());
                         }
+                        // 失败情况销毁channel
                         destroyChannel(future.channel());
                     }
                 }
             });
         }
+
+        // 如果存在超时时间 阻塞本线程 当收到 res 消息后 也会唤醒线程
         if (timeout > 0) {
             try {
                 return messageFuture.get(timeout, TimeUnit.MILLISECONDS);
@@ -312,6 +343,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
                     throw new RuntimeException(exx);
                 }
             }
+        // 没有超时时间 就不进行阻塞
         } else {
             return null;
         }
@@ -319,12 +351,13 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
 
     /**
      * Send request.
-     *
+     * 同步发送请求消息
      * @param channel the channel
      * @param msg     the msg
      */
     protected void sendRequest(Channel channel, Object msg) {
         RpcMessage rpcMessage = new RpcMessage();
+        // 如果是心跳消息 设置对应的消息类型
         rpcMessage.setMessageType(msg instanceof HeartbeatMessage ?
                 ProtocolConstants.MSGTYPE_HEARTBEAT_REQUEST
                 : ProtocolConstants.MSGTYPE_RESQUEST);
@@ -332,20 +365,23 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
         rpcMessage.setCompressor(ProtocolConstants.CONFIGURED_COMPRESSOR);
         rpcMessage.setBody(msg);
         rpcMessage.setId(getNextMessageId());
+        // 同步调用本身应该是不需要放到容器中的  而异步确实有这个必要  而 mergeMessage 可能是特殊要求也要加入到容器中
         if (msg instanceof MergeMessage) {
             mergeMsgMap.put(rpcMessage.getId(), (MergeMessage)msg);
         }
+        // 检测可否写入 不可写入就阻塞  不能写入应该就是底层缓冲区满了 需要 选择器匹配到 写操作
         channelWriteableCheck(channel, msg);
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("write message:" + rpcMessage.getBody() + ", channel:" + channel + ",active?"
                 + channel.isActive() + ",writable?" + channel.isWritable() + ",isopen?" + channel.isOpen());
         }
+        // 写入消息  这里写入也会直接返回啊没有体现出 同步的动作
         channel.writeAndFlush(rpcMessage);
     }
 
     /**
      * Send response.
-     *
+     * 发送结果
      * @param request  the msg id
      * @param channel the channel
      * @param msg     the msg
@@ -366,17 +402,24 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
         channel.writeAndFlush(rpcMessage);
     }
 
+    /**
+     * 检测 channel 是否可写入数据
+     * @param channel
+     * @param msg
+     */
     private void channelWriteableCheck(Channel channel, Object msg) {
         int tryTimes = 0;
         synchronized (lock) {
             while (!channel.isWritable()) {
                 try {
                     tryTimes++;
+                    // 当不能写入时 有一个最大的重试次数 超过的情况下 关闭该channel
                     if (tryTimes > NettyClientConfig.getMaxNotWriteableRetry()) {
                         destroyChannel(channel);
                         throw new FrameworkException("msg:" + ((msg == null) ? "null" : msg.toString()),
                             FrameworkErrorCode.ChannelIsNotWritable);
                     }
+                    // 该线程沉睡 等待 channel 变成可写的
                     lock.wait(NOT_WRITEABLE_CHECK_MILLS);
                 } catch (InterruptedException exx) {
                     LOGGER.error(exx.getMessage());
@@ -390,16 +433,25 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
      */
     boolean allowDumpStack = false;
 
+    /**
+     * 接受到读取的数据时
+     * @param ctx
+     * @param msg
+     * @throws Exception
+     */
     @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
+        // 如果接收到的时 RpcMessage
         if (msg instanceof RpcMessage) {
             final RpcMessage rpcMessage = (RpcMessage)msg;
+            // 收到请求消息
             if (rpcMessage.getMessageType() == ProtocolConstants.MSGTYPE_RESQUEST
                     || rpcMessage.getMessageType() == ProtocolConstants.MSGTYPE_RESQUEST_ONEWAY) {
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug(String.format("%s msgId:%s, body:%s", this, rpcMessage.getId(), rpcMessage.getBody()));
                 }
                 try {
+                    // 使用线程池去分发处理
                     AbstractRpcRemoting.this.messageExecutor.execute(new Runnable() {
                         @Override
                         public void run() {
@@ -410,6 +462,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
                             }
                         }
                     });
+                    // 如果消息满了  测试用这里不看
                 } catch (RejectedExecutionException e) {
                     LOGGER.error(FrameworkErrorCode.ThreadPoolFull.getErrCode(),
                         "thread pool is full, current max pool size is " + messageExecutor.getActiveCount());
@@ -425,6 +478,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
                         allowDumpStack = false;
                     }
                 }
+                // 代表接受到响应消息 那么 对应的 消息池就可以移除掉
             } else {
                 MessageFuture messageFuture = futures.remove(rpcMessage.getId());
                 if (LOGGER.isDebugEnabled()) {
@@ -432,6 +486,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
                         .format("%s msgId:%s, future :%s, body:%s", this, rpcMessage.getId(), messageFuture,
                             rpcMessage.getBody()));
                 }
+                // 设置结果 唤醒阻塞线程
                 if (messageFuture != null) {
                     messageFuture.setResultMessage(rpcMessage.getBody());
                 } else {
@@ -455,12 +510,19 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
         }
     }
 
+    /**
+     * 当捕获到异常时 该方法属于 Netty对外开放的钩子
+     * @param ctx
+     * @param cause
+     * @throws Exception
+     */
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         LOGGER.error(FrameworkErrorCode.ExceptionCaught.getErrCode(),
             ctx.channel() + " connect exception. " + cause.getMessage(),
             cause);
         try {
+            // 捕获到异常时关闭channel
             destroyChannel(ctx.channel());
         } catch (Exception e) {
             LOGGER.error("failed to close channel {}: {}", ctx.channel(), e.getMessage(), e);
@@ -469,12 +531,18 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
 
     /**
      * Dispatch.
-     *
+     * 处理接受到的消息 子类实现
      * @param request the request
      * @param ctx     the ctx
      */
     public abstract void dispatch(RpcMessage request, ChannelHandlerContext ctx);
 
+    /**
+     * 打印日志
+     * @param ctx
+     * @param future
+     * @throws Exception
+     */
     @Override
     public void close(ChannelHandlerContext ctx, ChannelPromise future) throws Exception {
         if (LOGGER.isInfoEnabled()) {
@@ -485,7 +553,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
 
     /**
      * Add channel pipeline last.
-     *
+     * 追加一些handlers 到 channel 上  应该是对用户开放的
      * @param channel  the channel
      * @param handlers the handlers
      */
@@ -506,7 +574,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
 
     /**
      * Gets group.
-     *
+     * 这里的组是以什么为单位划分的
      * @return the group
      */
     public String getGroup() {
@@ -524,7 +592,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
 
     /**
      * Destroy channel.
-     *
+     * 销毁某个channel
      * @param channel the channel
      */
     public void destroyChannel(Channel channel) {
@@ -533,7 +601,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
 
     /**
      * Destroy channel.
-     *
+     * 销毁channel 由子类实现
      * @param serverAddress the server address
      * @param channel       the channel
      */
@@ -551,7 +619,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
 
     /**
      * Gets address from channel.
-     *
+     * 从channel 上获取对端地址
      * @param channel the channel
      * @return the address from channel
      */

@@ -16,7 +16,7 @@
 package io.seata.core.rpc;
 
 /**
- *
+ * 可销毁对象
  * @author 563868273@qq.com
  * @date 2019/3/29
  */
