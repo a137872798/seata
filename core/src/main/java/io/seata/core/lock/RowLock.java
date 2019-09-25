@@ -19,7 +19,7 @@ import io.seata.common.util.StringUtils;
 
 /**
  * The type Row lock.
- *
+ * 行锁 推测 将各个 participant 作为 row 保存在table 中 这里应该是确保一次只能执行一个participant  还不确定
  * @author zhangsen
  * @date 2019 -05-15
  */
@@ -37,8 +37,14 @@ public class RowLock {
 
     private String pk;
 
+    /**
+     * 针对该row 的唯一标识
+     */
     private String rowKey;
 
+    /**
+     * 特性
+     */
     private String feature;
 
     /**

@@ -17,7 +17,7 @@ package io.seata.core.protocol;
 
 /**
  * The type Abstract identify response.
- *
+ * 标识唯一响应
  * @author sharajava
  */
 public abstract class AbstractIdentifyResponse extends AbstractResultMessage {
@@ -26,6 +26,9 @@ public abstract class AbstractIdentifyResponse extends AbstractResultMessage {
 
     private String extraData;
 
+    /**
+     * 是否唯一
+     */
     private boolean identified;
 
     /**

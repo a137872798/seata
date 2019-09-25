@@ -17,14 +17,20 @@ package io.seata.core.protocol;
 
 /**
  * The type Abstract result message.
- *
+ * 包含结果信息
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /9/14
  */
 public abstract class AbstractResultMessage extends AbstractMessage  {
 
+    /**
+     * 结果码
+     */
     private ResultCode resultCode;
 
+    /**
+     * 异常信息
+     */
     private String msg;
 
     /**

@@ -20,16 +20,28 @@ import java.util.Map;
 
 /**
  * The type Rpc message.
- *
+ * 远程消息
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /9/14
  */
 public class RpcMessage {
 
     private int id;
+    /**
+     * 消息类型
+     */
     private byte messageType;
+    /**
+     * 序列化方式
+     */
     private byte codec;
+    /**
+     * 是否压缩
+     */
     private byte compressor;
+    /**
+     * 请求头消息
+     */
     private Map<String, String> headMap = new HashMap<>();
     private Object body;
 

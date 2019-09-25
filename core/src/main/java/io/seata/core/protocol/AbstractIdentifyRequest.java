@@ -18,7 +18,7 @@ package io.seata.core.protocol;
 
 /**
  * The type Abstract identify request.
- *
+ * 标识唯一请求
  * @author sharajava
  */
 public abstract class AbstractIdentifyRequest extends AbstractMessage {

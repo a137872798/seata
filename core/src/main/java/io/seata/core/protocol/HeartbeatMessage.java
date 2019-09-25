@@ -19,6 +19,7 @@ import java.io.Serializable;
 
 /**
  * The type Heartbeat message.
+ * 心跳消息
  *
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /9/14

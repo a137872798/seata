@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Abstract locker.
- *
+ * 锁对象骨架类
  * @author zhangsen
  * @date 2019 -05-15
  */
@@ -43,7 +43,7 @@ public abstract class AbstractLocker implements Locker {
 
     /**
      * Convert to lock do list.
-     *
+     * 将行锁对象转换成锁实体
      * @param locks the locks
      * @return the list
      */

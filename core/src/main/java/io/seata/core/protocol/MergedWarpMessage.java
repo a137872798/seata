@@ -21,7 +21,7 @@ import java.util.List;
 
 /**
  * The type Merged warp message.
- *
+ * 代表内部包装了一组消息
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /10/9
  */
@@ -33,6 +33,7 @@ public class MergedWarpMessage extends AbstractMessage implements Serializable, 
     public List<AbstractMessage> msgs = new ArrayList<>();
     /**
      * The Msg ids.
+     * 消息对应的id
      */
     public List<Integer> msgIds = new ArrayList<>();
 

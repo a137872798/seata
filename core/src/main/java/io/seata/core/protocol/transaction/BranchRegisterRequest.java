@@ -21,13 +21,16 @@ import io.seata.core.rpc.RpcContext;
 
 /**
  * The type Branch register request.
- *
+ * 代表注册某个 参与者
  * @author sharajava
  */
 public class BranchRegisterRequest extends AbstractTransactionRequestToTC  {
 
     private String xid;
 
+    /**
+     * 默认都是使用AT策略
+     */
     private BranchType branchType = BranchType.AT;
 
     private String resourceId;

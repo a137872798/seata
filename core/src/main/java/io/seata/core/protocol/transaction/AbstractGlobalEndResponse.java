@@ -20,13 +20,14 @@ import io.seata.core.model.GlobalStatus;
 
 /**
  * The type Abstract global end response.
- *
+ * 针对全局事务的响应结果
  * @author sharajava
  */
 public abstract class AbstractGlobalEndResponse extends AbstractTransactionResponse {
 
     /**
      * The Global status.
+     * 全局事务状态
      */
     protected GlobalStatus globalStatus;
 

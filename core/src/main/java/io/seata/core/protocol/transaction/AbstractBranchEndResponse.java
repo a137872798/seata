@@ -19,7 +19,7 @@ import io.seata.core.model.BranchStatus;
 
 /**
  * The type Abstract branch end response.
- *
+ * 当对某个 participants 发起请求后返回的结果
  * @author sharajava
  */
 public abstract class AbstractBranchEndResponse extends AbstractTransactionResponse {
@@ -31,6 +31,7 @@ public abstract class AbstractBranchEndResponse extends AbstractTransactionRespo
 
     /**
      * The Branch id.
+     * 该参与者的id
      */
     protected long branchId;
     /**

@@ -24,8 +24,8 @@ public enum BranchType {
 
     /**
      * The At.
+     * 基于AT 方案解决分布式事务 
      */
-    // AT Branch
     AT,
     
     /**

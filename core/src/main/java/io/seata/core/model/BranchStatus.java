@@ -22,7 +22,7 @@ import io.seata.common.exception.ShouldNeverHappenException;
 
 /**
  * Status of branch transaction.
- *
+ * 应该是participants 的状态
  * @author sharajava
  */
 public enum BranchStatus {
@@ -30,50 +30,61 @@ public enum BranchStatus {
     /**
      * The Unknown.
      * description:Unknown branch status.
+     * 刚创建时应该是这个
      */
     Unknown(0),
 
     /**
      * The Registered.
      * description:Registered to TC.
+     * 将participants 注册到协调者中
      */
     Registered(1),
 
     /**
      * The Phase one done.
      * description:Branch logic is successfully done at phase one.
+     * 开始执行第一阶段 也就是 Try
      */
     PhaseOne_Done(2),
 
     /**
      * The Phase one failed.
      * description:Branch logic is failed at phase one.
+     * 第一阶段执行失败
      */
     PhaseOne_Failed(3),
 
     /**
      * The Phase one timeout.
      * description:Branch logic is NOT reported for a timeout.
+     * 第一阶段超时
      */
     PhaseOne_Timeout(4),
 
     /**
      * The Phase two committed.
      * description:Commit logic is successfully done at phase two.
+     * 第二阶段成功提交
      */
     PhaseTwo_Committed(5),
 
     /**
      * The Phase two commit failed retryable.
      * description:Commit logic is failed but retryable.
+     * 第二阶段提交失败进行重试  （一旦try 成功后就可以尝试进行 commit/rollback 当单次执行失败后可以 选择补偿或者不补偿）
      */
     PhaseTwo_CommitFailed_Retryable(6),
 
     /**
      * The Phase two commit failed unretryable.
      * description:Commit logic is failed and NOT retryable.
+     * 第二阶段提交失败不允许重试
      */
     PhaseTwo_CommitFailed_Unretryable(7),
+
+
+    // 回滚的相关方法
 
     /**
      * The Phase two rollbacked.
@@ -108,6 +119,9 @@ public enum BranchStatus {
         return code;
     }
 
+    /**
+     * 使用全局单例保存 也算是一边of() 的简便实现吧
+     */
     private static final Map<Integer, BranchStatus> MAP = new HashMap<>(values().length);
 
     static {

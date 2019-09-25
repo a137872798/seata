@@ -21,6 +21,7 @@ import io.seata.core.codec.CompressorType;
 import io.seata.core.constants.ConfigurationKeys;
 
 /**
+ * 自定义协议常量信息
  * @author Geng Zhang
  * @since 0.7.0
  */

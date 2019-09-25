@@ -25,6 +25,7 @@ import java.util.Map;
 /**
  * Common serializer of map (this generally refers to header).
  *
+ * 用于存放头部信息的容器
  * @author Geng Zhang
  * @since 0.7.0
  */
@@ -51,7 +52,9 @@ public class HeadMapSerializer {
         if (map == null || map.isEmpty() || out == null) {
             return 0;
         }
+        // 获取当前写指针
         int start = out.writerIndex();
+        // 将map 中的数据写入到 bytebuf 中
         for (Map.Entry<String, String> entry : map.entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue();
@@ -60,6 +63,7 @@ public class HeadMapSerializer {
                 writeString(out, value);
             }
         }
+        // 返回写入长度
         return out.writerIndex() - start;
     }
 

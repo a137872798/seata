@@ -19,7 +19,7 @@ import io.seata.core.exception.TransactionException;
 
 /**
  * Resource Manager: send outbound request to TC.
- *
+ * 获取RM 的数据
  * @author sharajava
  */
 public interface ResourceManagerOutbound {

@@ -20,6 +20,7 @@ import io.seata.core.rpc.RpcContext;
 
 /**
  * The type Branch commit request.
+ * 代表提交分支的请求  注意该请求是发往RM 的
  *
  * @author sharajava
  */
@@ -30,6 +31,11 @@ public class BranchCommitRequest extends AbstractBranchEndRequest {
         return MessageType.TYPE_BRANCH_COMMIT;
     }
 
+    /**
+     * 默认使用 本对象携带的 handler 处理自身
+     * @param rpcContext the rpc context
+     * @return
+     */
     @Override
     public AbstractTransactionResponse handle(RpcContext rpcContext) {
         return handler.handle(this);

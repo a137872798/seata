@@ -61,6 +61,7 @@ public class ProtocolV1Encoder extends MessageToByteEncoder {
     @Override
     public void encode(ChannelHandlerContext ctx, Object msg, ByteBuf out) {
         try {
+            // 如果请求类型是 RpcMessage
             if (msg instanceof RpcMessage) {
                 RpcMessage rpcMessage = (RpcMessage) msg;
 
@@ -106,6 +107,7 @@ public class ProtocolV1Encoder extends MessageToByteEncoder {
                 out.writeShort(headLength);
                 out.writerIndex(writeIndex);
             } else {
+                // 不支持其他类型消息的写入
                 throw new UnsupportedOperationException("Not support this class:" + msg.getClass());
             }
         } catch (Throwable e) {

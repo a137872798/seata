@@ -21,11 +21,15 @@ import io.seata.core.protocol.AbstractResultMessage;
 
 /**
  * The type Abstract transaction response.
+ * 对应结果实体 该对象跟 req 对象继承的类不同 req 继承的是AbstractMessage
  *
  * @author sharajava
  */
 public abstract class AbstractTransactionResponse extends AbstractResultMessage {
 
+    /**
+     * 默认使用的事务异常code 为 Unknown
+     */
     private TransactionExceptionCode transactionExceptionCode = TransactionExceptionCode.Unknown;
 
     /**

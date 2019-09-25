@@ -17,14 +17,14 @@ package io.seata.core.protocol.transaction;
 
 /**
  * The interface Rm inbound handler.
- *
+ * 代表针对发送到RM上数据的处理器
  * @author sharajava
  */
 public interface RMInboundHandler {
 
     /**
      * Handle branch commit response.
-     *
+     * 处理commit
      * @param request the request
      * @return the branch commit response
      */
@@ -32,7 +32,7 @@ public interface RMInboundHandler {
 
     /**
      * Handle branch rollback response.
-     *
+     * 处理rollback
      * @param request the request
      * @return the branch rollback response
      */
@@ -40,7 +40,7 @@ public interface RMInboundHandler {
 
     /**
      * Handle delete undo log .
-     *
+     * 删除 事务日志
      * @param request the request
      */
     void handle(UndoLogDeleteRequest request);

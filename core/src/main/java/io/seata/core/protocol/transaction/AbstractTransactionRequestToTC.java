@@ -18,13 +18,14 @@ package io.seata.core.protocol.transaction;
 
 /**
  * The type Abstract transaction request to tc.
- *
+ * 发往TC 的请求对象  现在看来 TC 是管理 协调者的 RM 是管理参与者的(还有事务日志)
  * @author sharajava
  */
 public abstract class AbstractTransactionRequestToTC extends AbstractTransactionRequest {
 
     /**
      * The Handler.
+     * TC 请求处理器
      */
     protected TCInboundHandler handler;
 

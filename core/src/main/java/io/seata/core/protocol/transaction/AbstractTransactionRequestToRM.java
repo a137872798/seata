@@ -18,13 +18,14 @@ package io.seata.core.protocol.transaction;
 
 /**
  * The type Abstract transaction request to rm.
- *
+ * 事务对象 与 RM 间的请求体
  * @author sharajava
  */
 public abstract class AbstractTransactionRequestToRM extends AbstractTransactionRequest {
 
     /**
      * The Handler.
+     * 使用 RMInbound 处理传入消息  为什么会附属于请求对象上
      */
     protected RMInboundHandler handler;
 

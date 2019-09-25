@@ -17,15 +17,24 @@ package io.seata.core.model;
 
 /**
  * Generic return result class
- *
+ * 泛化的结果对象
  * @author zjinlei
  */
 public class Result<T> {
 
+    /**
+     * 结果对象
+     */
     private T result;
 
+    /**
+     * 异常信息
+     */
     private String errMsg;
 
+    /**
+     * 异常参数
+     */
     private Object[] errMsgParams;
 
     public T getResult() {

@@ -26,7 +26,7 @@ import java.nio.charset.Charset;
 
 /**
  * The type Abstract message.
- *
+ * 消息骨架类
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /9/14
  */
@@ -38,10 +38,13 @@ public abstract class AbstractMessage implements MessageTypeAware, Serializable 
 
     /**
      * The constant UTF8.
+     * 默认编码使用 UTF-8
      */
     protected static final Charset UTF8 = Constants.DEFAULT_CHARSET;
     /**
      * The Ctx.
+     * 整个channelPipeline 中的一环
+     * 推测将各个 participant 都封装成 req 对象并映射到 Netty的 ChannelHandlerContext 中
      */
     protected ChannelHandlerContext ctx;
 

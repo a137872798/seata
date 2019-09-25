@@ -21,7 +21,7 @@ import io.seata.core.protocol.MessageType;
 
 /**
  * The type Branch register response.
- *
+ * 注册的结果 返回了一个参与者的唯一标识
  * @author jimin.jm @alibaba-inc.com
  */
 public class BranchRegisterResponse extends AbstractTransactionResponse implements Serializable {

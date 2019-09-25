@@ -23,7 +23,7 @@ import java.io.Serializable;
 
 /**
  * The type to delete undolog  request.
- *
+ * 代表删除 事务日志的请求 注意这个也是发往 RM 的
  * @author github-ygy
  * @date 2019-6-14
  */
@@ -33,8 +33,14 @@ public class UndoLogDeleteRequest extends AbstractTransactionRequestToRM impleme
 
     public static final short DEFAULT_SAVE_DAYS = 7;
 
+    /**
+     * 对应RM 中的资源id  看来 undo 日志是作为RM 上的一种资源
+     */
     private String resourceId;
 
+    /**
+     * 日志默认存放7天
+     */
     private short saveDays = DEFAULT_SAVE_DAYS;
 
     /**

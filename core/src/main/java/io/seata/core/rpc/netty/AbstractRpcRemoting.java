@@ -54,7 +54,7 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * The type Abstract rpc remoting.
- *
+ * Client/Server 的基类  继承双端handler
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /9/12
  */
@@ -63,54 +63,72 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractRpcRemoting.class);
     /**
      * The Timer executor.
+     * 超时检测 应该是记录从 数据流入 和流出的耗时时间
      */
     protected final ScheduledExecutorService timerExecutor = new ScheduledThreadPoolExecutor(1,
         new NamedThreadFactory("timeoutChecker", 1, true));
     /**
      * The Message executor.
+     * 使用额外的线程池避免阻塞 netty的独占线程
      */
     protected final ThreadPoolExecutor messageExecutor;
 
-    /** Id generator of this remoting */
+    /**
+     * Id generator of this remoting
+     * 一个保证正数的 计数器
+     */
     protected final PositiveAtomicCounter idGenerator = new PositiveAtomicCounter();
 
     /**
      * The Futures.
+     * 存放一组 future 对象
      */
     protected final ConcurrentHashMap<Integer, MessageFuture> futures = new ConcurrentHashMap<>();
     /**
      * The Basket map.
+     * 该容器是干嘛用的???
      */
     protected final ConcurrentHashMap<String, BlockingQueue<RpcMessage>> basketMap = new ConcurrentHashMap<>();
 
     private static final long NOT_WRITEABLE_CHECK_MILLS = 10L;
     /**
      * The Merge lock.
+     * 整合消息时的 对象锁
      */
     protected final Object mergeLock = new Object();
     /**
      * The Now mills.
+     * 当前时间戳 会在每次触发定时任务时更新
      */
     protected volatile long nowMills = 0;
+    /**
+     * 超时检测时间间隔
+     */
     private static final int TIMEOUT_CHECK_INTERNAL = 3000;
+    /**
+     * 锁对象
+     */
     private final Object lock = new Object();
     /**
      * The Is sending.
+     * 判断是否已经发送
      */
     protected volatile boolean isSending = false;
     private String group = "DEFAULT";
     /**
      * The Merge msg map.
+     * 存放merge 消息的容器
      */
     protected final Map<Integer, MergeMessage> mergeMsgMap = new ConcurrentHashMap<>();
     /**
      * The Channel handlers.
+     * 该对象维护了一组channelHandler
      */
     protected ChannelHandler[] channelHandlers;
 
     /**
      * Instantiates a new Abstract rpc remoting.
-     *
+     * 使用线程池来初始化该对象
      * @param messageExecutor the message executor
      */
     public AbstractRpcRemoting(ThreadPoolExecutor messageExecutor) {
@@ -128,24 +146,34 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
 
     /**
      * Init.
+     * 初始化方法 启动定时器
      */
     public void init() {
         timerExecutor.scheduleAtFixedRate(new Runnable() {
+
+            /**
+             * 定时清理 未产生结果的MessageFuture对象
+             */
             @Override
             public void run() {
                 List<MessageFuture> timeoutMessageFutures = new ArrayList<MessageFuture>(futures.size());
                 for (MessageFuture future : futures.values()) {
+                    // 判断任务是否超时
                     if (future.isTimeout()) {
+                        // 添加到超时队列中
                         timeoutMessageFutures.add(future);
                     }
                 }
                 for (MessageFuture messageFuture : timeoutMessageFutures) {
+                    // 从当前容器中移除 超时future 对象
                     futures.remove(messageFuture.getRequestMessage().getId());
+                    // 通过设置结果的方式 强制性唤醒等待线程
                     messageFuture.setResultMessage(null);
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug("timeout clear future : " + messageFuture.getRequestMessage().getBody());
                     }
                 }
+                // 同时更新 nowMills
                 nowMills = System.currentTimeMillis();
             }
         }, TIMEOUT_CHECK_INTERNAL, TIMEOUT_CHECK_INTERNAL, TimeUnit.MILLISECONDS);
@@ -153,6 +181,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
 
     /**
      * Destroy.
+     * 关闭线程池 实际上线程池不再接受新的任务 并且处理已经存放于队列中的任务
      */
     @Override
     public void destroy() {
@@ -160,19 +189,26 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
         messageExecutor.shutdown();
     }
 
+    /**
+     * 当channel 可写入状态发生变化时 触发 这个函数有点忘了  注意寻找 配对的 synchronized (lock) 位置
+     * @param ctx
+     */
     @Override
     public void channelWritabilityChanged(ChannelHandlerContext ctx) {
         synchronized (lock) {
+            // 如果变成了可写状态 唤醒阻塞的其他lock
             if (ctx.channel().isWritable()) {
                 lock.notifyAll();
             }
         }
 
+        // 向下传播事件
         ctx.fireChannelWritabilityChanged();
     }
 
     /**
      * Send async request with response object.
+     * 发送异步请求 会抛出超时异常
      *
      * @param channel the channel
      * @param msg     the msg

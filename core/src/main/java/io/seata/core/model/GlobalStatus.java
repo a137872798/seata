@@ -20,6 +20,7 @@ import java.util.Map;
 
 /**
  * Status of global transaction.
+ * 协调者的状态
  *
  * @author sharajava
  */
@@ -27,18 +28,20 @@ public enum GlobalStatus {
 
     /**
      * Un known global status.
+     * 初始化时 默认时 Unknown
      */
-    // Unknown
     UnKnown(0),
 
     /**
      * The Begin.
+     * 代表协调者 开启事务
      */
     // PHASE 1: can accept new branch registering.
     Begin(1),
 
     /**
      * PHASE 2: Running Status: may be changed any time.
+     * 协调者开始提交整个事务
      */
     // Committing.
     Committing(2),
@@ -63,6 +66,7 @@ public enum GlobalStatus {
 
     /**
      * The Timeout rollbacking.
+     * 超时引发的回滚
      */
     // Rollbacking since timeout
     TimeoutRollbacking(6),
@@ -76,35 +80,41 @@ public enum GlobalStatus {
     /**
      * All branches can be async committed. The committing is NOT done yet, but it can be seen as committed for TM/RM
      * client.
+     * 异步提交
      */
     AsyncCommitting(8),
 
     /**
      * PHASE 2: Final Status: will NOT change any more.
+     * 代表commit 成功不会再修改了
      */
     // Finally: global transaction is successfully committed.
     Committed(9),
 
     /**
      * The Commit failed.
+     * 提交失败
      */
     // Finally: failed to commit
     CommitFailed(10),
 
     /**
      * The Rollbacked.
+     * 已回滚
      */
     // Finally: global transaction is successfully rollbacked.
     Rollbacked(11),
 
     /**
      * The Rollback failed.
+     * 回滚失败
      */
     // Finally: failed to rollback
     RollbackFailed(12),
 
     /**
      * The Timeout rollbacked.
+     * 回滚超时
      */
     // Finally: global transaction is successfully rollbacked since timeout.
     TimeoutRollbacked(13),

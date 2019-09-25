@@ -25,11 +25,13 @@ public enum LockMode {
 
     /**
      * store the lock in user's database
+     * 基于本地数据库的锁
      */
     LOCAL,
 
     /**
      * store the lock in seata's server
+     * 分布式锁
      */
     REMOTE;
 

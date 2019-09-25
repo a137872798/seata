@@ -22,7 +22,7 @@ import io.netty.channel.epoll.EpollServerSocketChannel;
 
 /**
  * The type Netty server config.
- *
+ * 服务端配置文件
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /9/12
  */

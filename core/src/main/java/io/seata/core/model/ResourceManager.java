@@ -19,6 +19,7 @@ import java.util.Map;
 
 /**
  * Resource Manager: common behaviors.
+ * 资源管理器接口
  *
  * @author sharajava
  */

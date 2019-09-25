@@ -24,12 +24,18 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * The type Message future.
- *
+ * 异步消息结果
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /10/9
  */
 public class MessageFuture {
+    /**
+     * 发起请求的消息内容
+     */
     private RpcMessage requestMessage;
+    /**
+     * 设置等待结果时间  可以在外面进行修改
+     */
     private long timeout;
     private long start = System.currentTimeMillis();
     private static final Object NULL = new Object();
@@ -46,7 +52,7 @@ public class MessageFuture {
 
     /**
      * Get object.
-     *
+     * 获取执行结果
      * @param timeout the timeout
      * @param unit    the unit
      * @return the object
@@ -57,6 +63,7 @@ public class MessageFuture {
         InterruptedException {
         Object result = null;
         try {
+            // 超时等待结果  这个对象的初始化数据呢 难道是通过从外部设置future 来触发 那只是设置一组简单的动作???
             result = origin.get(timeout, unit);
         } catch (ExecutionException e) {
             throw new ShouldNeverHappenException("Should not get results in a multi-threaded environment", e);
@@ -75,7 +82,7 @@ public class MessageFuture {
 
     /**
      * Sets result message.
-     *
+     * 将结果直接设置到 future 中从而触发 针对该future 对象设置的一组action
      * @param obj the obj
      */
     public void setResultMessage(Object obj) {

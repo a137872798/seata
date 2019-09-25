@@ -54,6 +54,7 @@ import java.util.Map;
  * @author Geng Zhang
  * @see ProtocolV1Encoder
  * @since 0.7.0
+ * 拓展netty 的解码器
  */
 public class ProtocolV1Decoder extends LengthFieldBasedFrameDecoder {
 
@@ -109,6 +110,7 @@ public class ProtocolV1Decoder extends LengthFieldBasedFrameDecoder {
         byte compressor = frame.readByte();
         int requestId = frame.readInt();
 
+        // 将解析出来的 数据信息设置到 RpcMessage 中
         RpcMessage rpcMessage = new RpcMessage();
         rpcMessage.setCodec(codecType);
         rpcMessage.setId(requestId);
@@ -118,11 +120,13 @@ public class ProtocolV1Decoder extends LengthFieldBasedFrameDecoder {
         // direct read head with zero-copy
         int headMapLength = headLength - ProtocolConstants.V1_HEAD_LENGTH;
         if (headMapLength > 0) {
+            // 将请求头信息解析出来
             Map<String, String> map = HeadMapSerializer.getInstance().decode(frame, headMapLength);
             rpcMessage.getHeadMap().putAll(map);
         }
 
         // read body
+        // 判断是否是心跳数据  心跳数据本身没有做序列化处理
         if (messageType == ProtocolConstants.MSGTYPE_HEARTBEAT_REQUEST) {
             rpcMessage.setBody(HeartbeatMessage.PING);
         } else if (messageType == ProtocolConstants.MSGTYPE_HEARTBEAT_RESPONSE) {
@@ -132,6 +136,7 @@ public class ProtocolV1Decoder extends LengthFieldBasedFrameDecoder {
             if (bodyLength > 0) {
                 byte[] bs = new byte[bodyLength];
                 frame.readBytes(bs);
+                // body 需要做序列化处理
                 Codec codec = CodecFactory.getCodec(codecType);
                 rpcMessage.setBody(codec.decode(bs));
             }

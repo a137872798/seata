@@ -23,10 +23,18 @@ package io.seata.core.event;
 public class GuavaEventBus implements EventBus {
     private final com.google.common.eventbus.EventBus eventBus;
 
+    /**
+     * identifier 用于标记该事件唯一性
+     * @param identifier
+     */
     public GuavaEventBus(String identifier) {
         this.eventBus = new com.google.common.eventbus.EventBus(identifier);
     }
 
+    /**
+     * 就是插入到一个容器里
+     * @param subscriber
+     */
     @Override
     public void register(Object subscriber) {
         this.eventBus.register(subscriber);
@@ -37,6 +45,10 @@ public class GuavaEventBus implements EventBus {
         this.eventBus.unregister(subscriber);
     }
 
+    /**
+     * 传递事件到下一个环节
+     * @param event
+     */
     @Override
     public void post(Event event) {
         this.eventBus.post(event);

@@ -19,7 +19,7 @@ import java.util.List;
 
 /**
  * The interface Locker.
- *
+ * 锁对象
  * @author zhangsen
  * @date 2019 -05-15
  */
@@ -27,7 +27,7 @@ public interface Locker {
 
     /**
      * Acquire lock boolean.
-     *
+     * 尝试针对多 row 进行上锁 每行应该就是对应到 一次分布式事务中的 participant
      * @param rowLock the row lock
      * @return the boolean
      */
@@ -35,7 +35,7 @@ public interface Locker {
 
     /**
      * Un lock boolean.
-     *
+     * 代表事务完成 释放锁
      * @param rowLock the row lock
      * @return the boolean
      */
@@ -43,7 +43,7 @@ public interface Locker {
 
     /**
      * Is lockable boolean.
-     *
+     * 判断能否加锁
      * @param rowLock the row lock
      * @return the boolean
      */
@@ -51,7 +51,7 @@ public interface Locker {
 
     /**
      * Clean all locks boolean.
-     *
+     * 关闭锁时什么意思???
      * @return the boolean
      */
     void cleanAllLocks();

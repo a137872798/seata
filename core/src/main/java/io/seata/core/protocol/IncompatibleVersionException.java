@@ -17,7 +17,7 @@ package io.seata.core.protocol;
 
 /**
  * The type Incompatible version exception.
- *
+ * 版本不兼容异常
  * @author sharajava
  */
 public class IncompatibleVersionException extends Exception {

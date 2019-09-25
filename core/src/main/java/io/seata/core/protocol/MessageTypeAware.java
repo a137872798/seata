@@ -17,6 +17,7 @@ package io.seata.core.protocol;
 
 /**
  * @author zhangsen
+ * 消息类型 是 Req Res 的基类
  */
 public interface MessageTypeAware {
 
