@@ -19,7 +19,7 @@ import io.seata.common.exception.NotSupportYetException;
 
 /**
  * The enum Registry type.
- *
+ * 注册中心类型
  * @author jimin.jm @alibaba-inc.com
  * @date 2019 /02/26
  */

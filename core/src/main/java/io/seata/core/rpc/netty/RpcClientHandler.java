@@ -25,13 +25,16 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Rpc client handler.
- *
+ * 双端处理器
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /9/12
  */
 public class RpcClientHandler extends ChannelDuplexHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(RpcClientHandler.class);
 
+    /**
+     * 就看作一个普通的 hashMap 对象
+     */
     private final LongObjectHashMap compressTable = new LongObjectHashMap(8192, 0.5f);
 
     /**
@@ -41,6 +44,12 @@ public class RpcClientHandler extends ChannelDuplexHandler {
 
     }
 
+    /**
+     * 当 client 对象接受到消息时
+     * @param ctx
+     * @param msg
+     * @throws Exception
+     */
     @Override
     @SuppressWarnings("unchecked")
     public void channelRead(final ChannelHandlerContext ctx, final Object msg) throws Exception {
@@ -48,6 +57,7 @@ public class RpcClientHandler extends ChannelDuplexHandler {
 
         final String request = (String)msg;
         try {
+            // 直接将消息写回去了???
             ctx.writeAndFlush(request, ctx.voidPromise());
             LOGGER.info("client:" + msg);
 
@@ -56,12 +66,22 @@ public class RpcClientHandler extends ChannelDuplexHandler {
         }
     }
 
+    /**
+     * channel首次被激活时打印日志
+     * @param ctx
+     * @throws Exception
+     */
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
         LOGGER.info("channel active for ClientProxyHandler at :[{}]", ctx.channel());
     }
 
+    /**
+     * channel 失活时打印日志
+     * @param ctx
+     * @throws Exception
+     */
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);

@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Log store data base dao.
- *
+ * 这里只是将 代表锁的记录换成了 事务日志
  * @author zhangsen
  * @date 2019 /4/2
  */

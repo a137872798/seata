@@ -46,6 +46,9 @@ import java.util.function.Function;
 @Sharable   // @Sharable 代表该 channelHandler 可以添加到多个pipeline 中 注意client 对象的最上层就是一个 channelHandler 对象
 public final class TmRpcClient extends AbstractRpcRemotingClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(TmRpcClient.class);
+    /**
+     * 单例模式
+     */
     private static volatile TmRpcClient instance;
     private static final Configuration CONFIG = ConfigurationFactory.getInstance();
     private static final long KEEP_ALIVE_TIME = Integer.MAX_VALUE;
@@ -120,7 +123,10 @@ public final class TmRpcClient extends AbstractRpcRemotingClient {
     public void setTransactionServiceGroup(String transactionServiceGroup) {
         this.transactionServiceGroup = transactionServiceGroup;
     }
-    
+
+    /**
+     * 初始化 这里只是做了并发控制
+     */
     @Override
     public void init() {
         if (initialized.compareAndSet(false, true)) {
@@ -128,17 +134,25 @@ public final class TmRpcClient extends AbstractRpcRemotingClient {
             super.init();
         }
     }
-    
+
+    /**
+     * 原来每次销毁后 会清除实例对象
+     */
     @Override
     public void destroy() {
         super.destroy();
         initialized.getAndSet(false);
         instance = null;
     }
-    
+
+    /**
+     * 返回一个 函数 该函数可以将 address 转变成一个 poolKey 对象
+     * @return
+     */
     @Override
     protected Function<String, NettyPoolKey> getPoolKeyFunction() {
         return (severAddress) -> {
+            // 生成注册 TM 的消息  看来每个 TM Client 对象在创建时 会注册到server 上
             RegisterTMRequest message = new RegisterTMRequest(applicationId, transactionServiceGroup);
             return new NettyPoolKey(NettyPoolKey.TransactionRole.TMROLE, severAddress, message);
         };
@@ -148,13 +162,28 @@ public final class TmRpcClient extends AbstractRpcRemotingClient {
     public String getTransactionServiceGroup() {
         return transactionServiceGroup;
     }
-    
+
+    /**
+     * 当注册成功时触发
+     * @param serverAddress  the server address
+     * @param channel        the channel
+     * @param response       the response 代表响应消息
+     * @param requestMessage the request message
+     */
     @Override
     public void onRegisterMsgSuccess(String serverAddress, Channel channel, Object response,
                                      AbstractMessage requestMessage) {
+        // 将服务端channel 通过manager维护
         getClientChannelManager().registerChannel(serverAddress, channel);
     }
 
+    /**
+     * 注册失败时触发  直接抛出异常
+     * @param serverAddress  the server address
+     * @param channel        the channel
+     * @param response       the response
+     * @param requestMessage the request message
+     */
     @Override
     public void onRegisterMsgFail(String serverAddress, Channel channel, Object response,
                                   AbstractMessage requestMessage) {

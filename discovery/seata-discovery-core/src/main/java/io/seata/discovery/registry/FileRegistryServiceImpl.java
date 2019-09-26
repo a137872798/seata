@@ -27,7 +27,7 @@ import java.util.List;
 
 /**
  * The type File registry service.
- *
+ * 基于文件系统的的注册中心实现
  * @author jimin.jm @alibaba-inc.com
  * @date 2019 /02/12
  */
@@ -77,6 +77,12 @@ public class FileRegistryServiceImpl implements RegistryService<ConfigChangeList
 
     }
 
+    /**
+     * 从文件中查询
+     * @param key the key
+     * @return
+     * @throws Exception
+     */
     @Override
     public List<InetSocketAddress> lookup(String key) throws Exception {
         String clusterName = CONFIG.getConfig(PREFIX_SERVICE_ROOT + CONFIG_SPLIT_CHAR + PREFIX_SERVICE_MAPPING + key);
@@ -88,6 +94,7 @@ public class FileRegistryServiceImpl implements RegistryService<ConfigChangeList
         if (StringUtils.isNullOrEmpty(endpointStr)) {
             throw new IllegalArgumentException(clusterName + POSTFIX_GROUPLIST + " is required");
         }
+        // 查询结果可能由多个 ip:port 组成
         String[] endpoints = endpointStr.split(ENDPOINT_SPLIT_CHAR);
         List<InetSocketAddress> inetSocketAddresses = new ArrayList<>();
         for (String endpoint : endpoints) {

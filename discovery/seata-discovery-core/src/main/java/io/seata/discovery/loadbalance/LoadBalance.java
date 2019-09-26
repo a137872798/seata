@@ -19,7 +19,7 @@ import java.util.List;
 
 /**
  * The interface Load balance.
- *
+ * 均衡负载接口
  * @author jimin.jm @alibaba-inc.com
  * @date 2019 /02/12
  */
@@ -27,7 +27,7 @@ public interface LoadBalance {
 
     /**
      * Select t.
-     *
+     * 在一组invokers 中选择某个对象
      * @param <T>      the type parameter
      * @param invokers the invokers
      * @return the t

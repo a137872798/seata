@@ -19,7 +19,7 @@ import io.seata.common.loader.EnhancedServiceLoader;
 
 /**
  * The type Load balance factory.
- *
+ * 均衡负载工厂类 通过SPI 机制进行实例化
  * @author jimin.jm @alibaba-inc.com
  * @date 2019 /02/12
  */

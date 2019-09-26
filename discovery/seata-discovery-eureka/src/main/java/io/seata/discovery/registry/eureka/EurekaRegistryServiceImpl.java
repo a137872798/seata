@@ -46,7 +46,7 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * The type Eureka registry service.
- *
+ * 获取 eureka 注册中心实例对象 实现了 RegistryService 接口
  * @author: rui_849217@163.com
  * @date: 2018/3/6
  */

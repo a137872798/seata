@@ -40,7 +40,7 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * The type Abstract rpc server.
- *
+ * 通过Rpc访问的服务端
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /10/15
  */
@@ -50,10 +50,17 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
 
     /**
      * The Server message listener.
+     * 处理服务端接收到的消息  默认实现就是将注册消息对应的数据保存到容器中  事务消息则是委托给TransactionMessageListener
      */
     protected ServerMessageListener serverMessageListener;
 
+    /**
+     * 处理事务相关的消息
+     */
     private TransactionMessageHandler transactionMessageHandler;
+    /**
+     * 注册权限校验  对用户开放的钩子
+     */
     private RegisterCheckAuthHandler checkAuthHandler;
 
     /**
@@ -117,31 +124,35 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
 
     /**
      * Init.
+     * 初始化 服务端
      */
     @Override
     public void init() {
         super.init();
+        // 将本对象追加到 ServerBootStrap中
         setChannelHandlers(RpcServer.this);
+        // 使用默认的消息监听器实现
         DefaultServerMessageListenerImpl defaultServerMessageListenerImpl = new DefaultServerMessageListenerImpl(
             transactionMessageHandler);
         defaultServerMessageListenerImpl.init();
         defaultServerMessageListenerImpl.setServerMessageSender(this);
         this.setServerMessageListener(defaultServerMessageListenerImpl);
+        // 启动 serverBootStrap
         super.start();
-
     }
 
     private void closeChannelHandlerContext(ChannelHandlerContext ctx) {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("closeChannelHandlerContext channel:" + ctx.channel());
         }
+        // 关闭连接 触发 close 函数
         ctx.disconnect();
         ctx.close();
     }
 
     /**
      * User event triggered.
-     *
+     * 空闲检测对象
      * @param ctx the ctx
      * @param evt the evt
      * @throws Exception the exception
@@ -151,6 +162,7 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
         if (evt instanceof IdleStateEvent) {
             debugLog("idle:" + evt);
             IdleStateEvent idleStateEvent = (IdleStateEvent)evt;
+            // 长时间没有收到client 的心跳包 就关闭连接  如果server 需要往所有维护的 client 主动发送心跳包 性能消耗会比较大
             if (idleStateEvent.state() == IdleState.READER_IDLE) {
                 if (LOGGER.isInfoEnabled()) {
                     LOGGER.info("channel:" + ctx.channel() + " read idle.");
@@ -180,7 +192,7 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
     /**
      * Send response.
      * rm reg,rpc reg,inner response
-     *
+     * 返回响应信息
      * @param request the request
      * @param channel the channel
      * @param msg     the msg
@@ -188,10 +200,13 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
     @Override
     public void sendResponse(RpcMessage request, Channel channel, Object msg) {
         Channel clientChannel = channel;
+        // 非心跳消息时
         if (!(msg instanceof HeartbeatMessage)) {
+            // 从 channelManager 中找到对应的客户端channel
             clientChannel = ChannelManager.getSameClientChannel(channel);
         }
         if (clientChannel != null) {
+            // 通过上层处理
             super.sendResponse(request, clientChannel, msg);
         } else {
             throw new RuntimeException("channel is error. channel:" + clientChannel);
@@ -201,7 +216,7 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
     /**
      * Send request with response object.
      * send syn request for rm
-     *
+     * 发送同步消息  必须要设置超时时间才会调用get() 并进入阻塞
      * @param resourceId the db key
      * @param clientId   the client ip
      * @param message    the message
@@ -223,7 +238,7 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
 
     /**
      * Send request with response object.
-     *
+     * 使用默认的 超时时间 阻塞发送消息
      * @param resourceId the db key
      * @param clientId   the client ip
      * @param message    the msg
@@ -238,7 +253,7 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
 
     /**
      * Send request with response object.
-     *
+     * 异步发送消息  也就是不设置超时时间
      * @param channel   the channel
      * @param message    the msg
      * @return the object
@@ -251,21 +266,24 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
 
     /**
      * Dispatch.
-     *
+     * 上层收到消息后会通过 dispatch 来分发并处理消息
      * @param request the request
      * @param ctx   the ctx
      */
     @Override
     public void dispatch(RpcMessage request, ChannelHandlerContext ctx) {
         Object msg = request.getBody();
+        // 代表注册 RM 消息 就是保存到一个容器中
         if (msg instanceof RegisterRMRequest) {
             serverMessageListener.onRegRmMessage(request, ctx, this,
                 checkAuthHandler);
         } else {
+            // 代表是事务消息 事务消息的话首先要确保当前channel 已经注册
             if (ChannelManager.isRegistered(ctx.channel())) {
                 serverMessageListener.onTrxMessage(request, ctx, this);
             } else {
                 try {
+                    // channel 还没有注册 这里关闭channel
                     closeChannelHandlerContext(ctx);
                 } catch (Exception exx) {
                     LOGGER.error(exx.getMessage());
@@ -279,7 +297,7 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
 
     /**
      * Channel inactive.
-     *
+     * 当channel 失活时触发
      * @param ctx the ctx
      * @throws Exception the exception
      */
@@ -289,16 +307,22 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
         if (messageExecutor.isShutdown()) {
             return;
         }
+        // 处理断开连接的逻辑  当server 关闭时也会触发
         handleDisconnect(ctx);
         super.channelInactive(ctx);
     }
 
+    /**
+     * 断开连接
+     * @param ctx
+     */
     private void handleDisconnect(ChannelHandlerContext ctx) {
         final String ipAndPort = NetUtil.toStringAddress(ctx.channel().remoteAddress());
         RpcContext rpcContext = ChannelManager.getContextFromIdentified(ctx.channel());
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info(ipAndPort + " to server channel inactive.");
         }
+        // 做一些清理工作
         if (null != rpcContext && null != rpcContext.getClientRole()) {
             rpcContext.release();
             if (LOGGER.isInfoEnabled()) {
@@ -313,16 +337,18 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
 
     /**
      * Channel read.
-     *
+     * 当收到消息时  这层会拦截 RpcMessage 有点类似于 dubbo 每层抽象对应拦截一种消息
      * @param ctx the ctx
      * @param msg the msg
      * @throws Exception the exception
      */
     @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
+        // 代表是 Rpc 消息
         if (msg instanceof RpcMessage) {
             RpcMessage rpcMessage = (RpcMessage) msg;
             debugLog("read:" + rpcMessage.getBody());
+            // 分发请求
             if (rpcMessage.getBody() instanceof RegisterTMRequest) {
                 serverMessageListener.onRegTmMessage(rpcMessage, ctx, this, checkAuthHandler);
                 return;
@@ -337,7 +363,7 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
 
     /**
      * Exception caught.
-     *
+     * 当捕获到异常是 打印日志 并释放channel
      * @param ctx   the ctx
      * @param cause the cause
      * @throws Exception the exception

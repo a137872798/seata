@@ -19,7 +19,7 @@ import java.util.List;
 
 /**
  * The interface Lock store.
- *
+ * 存储相关的锁
  * @author zhangsen
  * @data 2019 /4/25
  */
@@ -27,7 +27,7 @@ public interface LockStore {
 
     /**
      * Acquire lock boolean.
-     *
+     * 尝试获取锁
      * @param lockDO the lock do
      * @return the boolean
      */
@@ -36,7 +36,7 @@ public interface LockStore {
 
     /**
      * Acquire lock boolean.
-     *
+     * 获取一组锁
      * @param lockDOs the lock d os
      * @return the boolean
      */
@@ -44,7 +44,7 @@ public interface LockStore {
 
     /**
      * Un lock boolean.
-     *
+     * 解锁
      * @param lockDO the lock do
      * @return the boolean
      */

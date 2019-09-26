@@ -21,7 +21,7 @@ import io.seata.core.constants.ServerTableColumnsName;
 
 /**
  * The type Lock store sqls.
- *
+ * 生成用于查询是否能获取锁的 sql 语句
  * @author zhangsen
  * @date 2019 /4/26
  */

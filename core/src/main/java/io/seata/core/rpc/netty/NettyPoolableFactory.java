@@ -28,7 +28,7 @@ import java.net.InetSocketAddress;
 
 /**
  * The type Netty key poolable factory.
- * 池化工厂
+ * 池化工厂  具备创建 对象 销毁对象 激活对象 和 使失活
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /11/19
  */
@@ -57,12 +57,18 @@ public class NettyPoolableFactory implements KeyedPoolableObjectFactory<NettyPoo
         this.clientBootstrap = clientBootstrap;
     }
 
+    /**
+     * 通过 一个 标识唯一对象的poolKey 初始化 channel
+     * @param key
+     * @return
+     */
     @Override
     public Channel makeObject(NettyPoolKey key) {
         InetSocketAddress address = NetUtil.toInetSocketAddress(key.getAddress());
             if (LOGGER.isInfoEnabled()) {
             LOGGER.info("NettyPool create channel to " + key);
         }
+        // 内部就是通过 bootstrap 连接到指定地址
         Channel tmpChannel = clientBootstrap.getNewChannel(address);
         long start = System.currentTimeMillis();
         Object response;
@@ -72,8 +78,11 @@ public class NettyPoolableFactory implements KeyedPoolableObjectFactory<NettyPoo
                 "register msg is null, role:" + key.getTransactionRole().name());
         }
         try {
+            // 一般key上携带的就是 RM 注册消息 或者 TM 注册消息 这里就代表着 某个channel 一旦被初始化就发送一条注册消息到 server 上
+            // 这里内部会使用一个超时时间去 阻塞等待结果
             response = rpcRemotingClient.sendAsyncRequestWithResponse(tmpChannel, key.getMessage());
             if (!isResponseSuccess(response, key.getTransactionRole())) {
+                // 触发注册失败
                 rpcRemotingClient.onRegisterMsgFail(key.getAddress(), tmpChannel, response, key.getMessage());
             } else {
                 channelToServer = tmpChannel;
@@ -94,12 +103,21 @@ public class NettyPoolableFactory implements KeyedPoolableObjectFactory<NettyPoo
         return channelToServer;
     }
 
+    /**
+     * 判断消息发送是否成功
+     * @param response
+     * @param transactionRole
+     * @return
+     */
     private boolean isResponseSuccess(Object response, NettyPoolKey.TransactionRole transactionRole) {
+        // 代表超时
         if (null == response) { return false; }
+        // 如果对应的 连接为 TM 则必须返回TM 响应消息
         if (transactionRole.equals(NettyPoolKey.TransactionRole.TMROLE)) {
             if (!(response instanceof RegisterTMResponse)) {
                 return false;
             }
+            // 该方法总是返回true 这啥意思
             return ((RegisterTMResponse) response).isIdentified();
         } else if (transactionRole.equals(NettyPoolKey.TransactionRole.RMROLE)) {
             if (!(response instanceof RegisterRMResponse)) {
@@ -110,6 +128,12 @@ public class NettyPoolableFactory implements KeyedPoolableObjectFactory<NettyPoo
         return false;
     }
 
+    /**
+     * 从res 上获取 version信息
+     * @param response
+     * @param transactionRole
+     * @return
+     */
     private String getVersion(Object response, NettyPoolKey.TransactionRole transactionRole) {
         if (transactionRole.equals(NettyPoolKey.TransactionRole.TMROLE)) {
             return ((RegisterTMResponse)response).getVersion();
@@ -118,6 +142,12 @@ public class NettyPoolableFactory implements KeyedPoolableObjectFactory<NettyPoo
         }
     }
 
+    /**
+     * 断开连接
+     * @param key
+     * @param channel
+     * @throws Exception
+     */
     @Override
     public void destroyObject(NettyPoolKey key, Channel channel) throws Exception {
 
@@ -130,6 +160,12 @@ public class NettyPoolableFactory implements KeyedPoolableObjectFactory<NettyPoo
         }
     }
 
+    /**
+     * 确保 channe 存活
+     * @param key
+     * @param obj
+     * @return
+     */
     @Override
     public boolean validateObject(NettyPoolKey key, Channel obj) {
         if (null != obj && obj.isActive()) {

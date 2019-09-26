@@ -21,7 +21,7 @@ import io.seata.common.util.CollectionUtils;
 
 /**
  * The type Abstract load balance.
- *
+ * 均衡负载骨架类
  * @author jimin.jm @alibaba-inc.com
  * @date 2019 /02/12
  */
@@ -35,6 +35,7 @@ public abstract class AbstractLoadBalance implements LoadBalance {
         if (invokers.size() == 1) {
             return invokers.get(0);
         }
+        // 核心方法子类实现
         return doSelect(invokers);
     }
 

@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * ensure the shutdownHook is singleton
- *
+ * 终结钩子 继承于一个 Thread 对象
  * @author 563868273@qq.com
  * @date 2019/3/29
  */
@@ -35,10 +35,19 @@ public class ShutdownHook extends Thread {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ShutdownHook.class);
 
+    /**
+     * 看来也是单例模式
+     */
     private static final ShutdownHook SHUTDOWN_HOOK = new ShutdownHook("ShutdownHook");
 
+    /**
+     * 维护一组可关闭对象 该对象会注册到JVM 上 当本机关闭时就会关闭所有Disposable对象
+     */
     private Set<Disposable> disposables = new TreeSet<>();
 
+    /**
+     * 并发控制 避免重复关闭
+     */
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
 
     /**
@@ -47,6 +56,7 @@ public class ShutdownHook extends Thread {
     private static final int DEFAULT_PRIORITY = 10;
 
     static {
+        // 将 钩子注册到JVM 中
         Runtime.getRuntime().addShutdownHook(SHUTDOWN_HOOK);
     }
 
@@ -62,7 +72,13 @@ public class ShutdownHook extends Thread {
         addDisposable(disposable, DEFAULT_PRIORITY);
     }
 
+    /**
+     * 追加关闭对象
+     * @param disposable
+     * @param priority
+     */
     public void addDisposable(Disposable disposable, int priority) {
+        // 为 关闭对象追加优先级概念
         disposables.add(new DisposablePriorityWrapper(disposable, priority));
     }
 
@@ -91,6 +107,9 @@ public class ShutdownHook extends Thread {
         Runtime.getRuntime().removeShutdownHook(SHUTDOWN_HOOK);
     }
 
+    /**
+     * 按照优先级进行排序
+     */
     private class DisposablePriorityWrapper implements Comparable<DisposablePriorityWrapper>, Disposable {
 
         private Disposable disposable;

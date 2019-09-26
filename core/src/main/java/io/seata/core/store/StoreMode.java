@@ -17,7 +17,7 @@ package io.seata.core.store;
 
 /**
  * transaction log store mode
- *
+ * 事务日志存储模式
  * @author zhangsen
  * @date 2019 /4/2
  */
@@ -25,11 +25,13 @@ public enum StoreMode {
 
     /**
      * file store
+     * 基于文件系统
      */
     FILE,
 
     /**
      * database store
+     * 基于数据库的存储
      */
     DB;
 

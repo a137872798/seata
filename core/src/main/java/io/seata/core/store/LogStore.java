@@ -20,7 +20,7 @@ import java.util.List;
 
 /**
  * the transaction log store
- *
+ * 存储事务日志接口
  * @author zhangsen
  * @date 2019 /3/26
  */
@@ -28,7 +28,7 @@ public interface LogStore {
 
     /**
      * Query global transaction do global transaction do.
-     *
+     * 使用 xid 查询 某个 事务信息
      * @param xid the xid
      * @return the global transaction do
      */
@@ -36,7 +36,7 @@ public interface LogStore {
 
     /**
      * Query global transaction do global transaction do.
-     *
+     * 使用事务id 查询
      * @param transactionId the transaction id
      * @return the global transaction do
      */
@@ -44,7 +44,7 @@ public interface LogStore {
 
     /**
      * Query global transaction do list.
-     *
+     * 通过一组状态和限制数量 查询一组 事务日志
      * @param status the status
      * @param limit  the limit
      * @return the list
@@ -53,7 +53,7 @@ public interface LogStore {
 
     /**
      * Insert global transaction do boolean.
-     *
+     * 插入某个事务日志
      * @param globalTransactionDO the global transaction do
      * @return the boolean
      */
@@ -61,7 +61,7 @@ public interface LogStore {
 
     /**
      * Update global transaction do boolean.
-     *
+     * 更新事务日志接口
      * @param globalTransactionDO the global transaction do
      * @return the boolean
      */
@@ -69,7 +69,7 @@ public interface LogStore {
 
     /**
      * Delete global transaction do boolean.
-     *
+     * 删除事务日志接口
      * @param globalTransactionDO the global transaction do
      * @return the boolean
      */
@@ -77,7 +77,7 @@ public interface LogStore {
 
     /**
      * Query branch transaction do boolean.
-     *
+     * 查询一组 子事务 (对应的就是 GlobalTransaction)
      * @param xid the xid
      * @return the boolean
      */
@@ -85,7 +85,7 @@ public interface LogStore {
 
     /**
      * Insert branch transaction do boolean.
-     *
+     * 插入某个 分支事务信息
      * @param branchTransactionDO the branch transaction do
      * @return the boolean
      */

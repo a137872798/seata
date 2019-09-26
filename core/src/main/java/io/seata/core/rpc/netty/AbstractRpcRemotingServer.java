@@ -215,7 +215,7 @@ public abstract class AbstractRpcRemotingServer extends AbstractRpcRemoting impl
             }
             // 如果完成初始化
             if (initialized.get()) {
-                // 从注册中心注销
+                // 从注册中心注销  这么看来server 是借助在注册中心上被客户端发现的
                 RegistryFactory.getInstance().unregister(new InetSocketAddress(XID.getIpAddress(), XID.getPort()));
                 RegistryFactory.getInstance().close();
                 //wait a few seconds for server transport

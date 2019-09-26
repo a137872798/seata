@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Rm message listener.
- *
+ * 针对rm 消息的监听器
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /10/11
  */
@@ -39,6 +39,9 @@ public class RmMessageListener implements ClientMessageListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RmMessageListener.class);
 
+    /**
+     * 处理事务消息
+     */
     private TransactionMessageHandler handler;
 
     /**
@@ -59,21 +62,38 @@ public class RmMessageListener implements ClientMessageListener {
         this.handler = handler;
     }
 
+    /**
+     * 处理收到的消息
+     * @param request       the msg id
+     * @param serverAddress the server address
+     * @param sender        the sender
+     */
     @Override
     public void onMessage(RpcMessage request, String serverAddress, ClientMessageSender sender) {
         Object msg = request.getBody();
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("onMessage:" + msg);
         }
+        // 如果是分支进行提交
         if (msg instanceof BranchCommitRequest) {
+            // 处理 commit
             handleBranchCommit(request, serverAddress, (BranchCommitRequest)msg, sender);
+            // 处理回滚
         } else if (msg instanceof BranchRollbackRequest) {
             handleBranchRollback(request, serverAddress, (BranchRollbackRequest)msg, sender);
+            // 代表某个分布式事务完成后 清理日志信息
         }else if (msg instanceof UndoLogDeleteRequest) {
             handleUndoLogDelete((UndoLogDeleteRequest) msg);
         }
     }
 
+    /**
+     * 处理回滚
+     * @param request
+     * @param serverAddress
+     * @param branchRollbackRequest
+     * @param sender
+     */
     private void handleBranchRollback(RpcMessage request, String serverAddress,
                                       BranchRollbackRequest branchRollbackRequest,
                                       ClientMessageSender sender) {
@@ -83,6 +103,7 @@ public class RmMessageListener implements ClientMessageListener {
             LOGGER.debug("branch rollback result:" + resultMessage);
         }
         try {
+            // 返回结果
             sender.sendResponse(request, serverAddress, resultMessage);
         } catch (Throwable throwable) {
             LOGGER.error("send response error: {}", throwable.getMessage(), throwable);
@@ -102,6 +123,7 @@ public class RmMessageListener implements ClientMessageListener {
             if (resultMessage == null) {
                 resultMessage = new BranchCommitResponse();
             }
+            // 提交失败时也要返回消息
             resultMessage.setResultCode(ResultCode.Failed);
             resultMessage.setMsg(e.getMessage());
             sender.sendResponse(request, serverAddress, resultMessage);

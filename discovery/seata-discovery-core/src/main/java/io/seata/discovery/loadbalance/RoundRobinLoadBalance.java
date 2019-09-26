@@ -22,7 +22,7 @@ import io.seata.common.loader.LoadLevel;
 
 /**
  * The type Round robin load balance.
- *
+ * 轮询实现
  * @author jimin.jm @alibaba-inc.com
  * @date 2019 /02/12
  */

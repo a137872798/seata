@@ -32,6 +32,9 @@ public class NettyPoolKey {
      * channel 的remote 地址
      */
     private String address;
+    /**
+     * 初始化消息 当想要通过该 key 对象创建一个channel 时会立即发送该消息
+     */
     private AbstractMessage message;
 
     /**

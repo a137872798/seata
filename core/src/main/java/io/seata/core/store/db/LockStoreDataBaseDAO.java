@@ -43,7 +43,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Data base lock store.
- *
+ * 基于 database 的 日志存储
+ * 实际上基于 database 的加锁 释放锁 就是查询database 中是否已经包含了某些记录 删除记录就对应释放锁
  * @author zhangsen
  * @date 2019 /4/25
  */
@@ -59,6 +60,7 @@ public class LockStoreDataBaseDAO implements LockStore, Initialize {
 
     /**
      * The Log store data source.
+     * 数据源对象 就是通过操作该对象 访问数据库
      */
     protected DataSource logStoreDataSource = null;
 
@@ -74,13 +76,16 @@ public class LockStoreDataBaseDAO implements LockStore, Initialize {
 
     /**
      * Instantiates a new Data base lock store dao.
-     *
+     * 使用dataSource 来初始化
      * @param logStoreDataSource the log store data source
      */
     public LockStoreDataBaseDAO(DataSource logStoreDataSource) {
         this.logStoreDataSource = logStoreDataSource;
     }
 
+    /**
+     * 进行初始化
+     */
     @Override
     public void init() {
         lockTable = CONFIG.getConfig(ConfigurationKeys.LOCK_DB_TABLE, ConfigurationKeys.LOCK_DB_DEFAULT_TABLE);
@@ -98,6 +103,11 @@ public class LockStoreDataBaseDAO implements LockStore, Initialize {
         return acquireLock(Collections.singletonList(lockDO));
     }
 
+    /**
+     * 尝试获取锁
+     * @param lockDOs the lock d os
+     * @return
+     */
     @Override
     public boolean acquireLock(List<LockDO> lockDOs) {
         Connection conn = null;
@@ -107,7 +117,9 @@ public class LockStoreDataBaseDAO implements LockStore, Initialize {
         Set<String> dbExistedRowKeys = new HashSet<>();
         boolean originalAutoCommit = true;
         try {
+            // 使用datasource 获取联俄籍
             conn = logStoreDataSource.getConnection();
+            // 设置非自动提交
             if (originalAutoCommit = conn.getAutoCommit()) {
                 conn.setAutoCommit(false);
             }
@@ -121,14 +133,20 @@ public class LockStoreDataBaseDAO implements LockStore, Initialize {
             }
             boolean canLock = true;
             //query
+            // 创建一个检查是否可锁的 sql 语句
             String checkLockSQL = LockStoreSqls.getCheckLockableSql(lockTable, sb.toString(), dbType);
+            // 生成会话对象
             ps = conn.prepareStatement(checkLockSQL);
             for (int i = 0; i < lockDOs.size(); i++) {
+                // 设置参数信息
                 ps.setString(i + 1, lockDOs.get(i).getRowKey());
             }
+            // 执行查询
             rs = ps.executeQuery();
+            // 看来这一组对象共用一个 xid 代表同属于一个事务吧
             String currentXID = lockDOs.get(0).getXid();
             while (rs.next()) {
+                // 针对每行结果 获取 xid 信息
                 String dbXID = rs.getString(ServerTableColumnsName.LOCK_TABLE_XID);
                 if (!StringUtils.equals(dbXID, currentXID)) {
                     if (LOGGER.isInfoEnabled()) {
@@ -145,6 +163,7 @@ public class LockStoreDataBaseDAO implements LockStore, Initialize {
             }
 
             if (!canLock) {
+                // 回滚
                 conn.rollback();
                 return false;
             }
@@ -170,6 +189,7 @@ public class LockStoreDataBaseDAO implements LockStore, Initialize {
                     return false;
                 }
             }
+            // 代表成功获取了锁
             conn.commit();
             return true;
         } catch (SQLException e) {
@@ -190,6 +210,7 @@ public class LockStoreDataBaseDAO implements LockStore, Initialize {
             if (conn != null) {
                 try {
                     if (originalAutoCommit) {
+                        // 记得还原成自动提交  当autoCommit 设置成false 相当于会先开启事务
                         conn.setAutoCommit(true);
                     }
                     conn.close();
@@ -251,6 +272,7 @@ public class LockStoreDataBaseDAO implements LockStore, Initialize {
         try {
             conn = logStoreDataSource.getConnection();
             conn.setAutoCommit(true);
+            // 注意该语句会直接提交
             if (!checkLockable(conn, lockDOs)) {
                 return false;
             }
@@ -269,7 +291,7 @@ public class LockStoreDataBaseDAO implements LockStore, Initialize {
 
     /**
      * Do acquire lock boolean.
-     *
+     * 尝试获取锁 这里就是执行一个插入语句
      * @param conn   the conn
      * @param lockDO the lock do
      * @return the boolean
@@ -302,7 +324,7 @@ public class LockStoreDataBaseDAO implements LockStore, Initialize {
 
     /**
      * Check lock boolean.
-     *
+     * 这里会直接进行commit
      * @param conn    the conn
      * @param lockDOs the lock do
      * @return the boolean

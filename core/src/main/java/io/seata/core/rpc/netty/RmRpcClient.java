@@ -43,7 +43,7 @@ import static io.seata.common.Constants.DBKEYS_SPLIT_CHAR;
 
 /**
  * The type Rm rpc client.
- *
+ * 客户端对象 对应TmRpcClient
  * @author jimin.jm @alibaba-inc.com
  * @author zhaojun
  * @date 2018 /10/10
@@ -52,8 +52,14 @@ import static io.seata.common.Constants.DBKEYS_SPLIT_CHAR;
 public final class RmRpcClient extends AbstractRpcRemotingClient {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RmRpcClient.class);
+    /**
+     * 该对象应该是接受 数据并管理
+     */
     private ResourceManager resourceManager;
     private static volatile RmRpcClient instance;
+    /**
+     * 这个是干嘛的
+     */
     private String customerKeys;
     private final AtomicBoolean initialized = new AtomicBoolean(false);
     private static final long KEEP_ALIVE_TIME = Integer.MAX_VALUE;
@@ -180,7 +186,14 @@ public final class RmRpcClient extends AbstractRpcRemotingClient {
     protected String getTransactionServiceGroup() {
         return transactionServiceGroup;
     }
-    
+
+    /**
+     * 当注册到 server 成功时触发
+     * @param serverAddress  the server address
+     * @param channel        the channel
+     * @param response       the response
+     * @param requestMessage the request message
+     */
     @Override
     public void onRegisterMsgSuccess(String serverAddress, Channel channel, Object response,
                                      AbstractMessage requestMessage) {
@@ -189,11 +202,14 @@ public final class RmRpcClient extends AbstractRpcRemotingClient {
                 "register RM success. server version:" + ((RegisterRMResponse)response).getVersion()
                     + ",channel:" + channel);
         }
+        // 如果自定义 key 不存在
         if (customerKeys == null) {
             getClientChannelManager().registerChannel(serverAddress, channel);
+            // 拼接资源信息 生成唯一标识
             String dbKey = getMergedResourceKeys();
             RegisterRMRequest message = (RegisterRMRequest)requestMessage;
             if (message.getResourceIds() != null) {
+                // 资源不匹配 发送到 server 注册??? 啥意思
                 if (!message.getResourceIds().equals(dbKey)) {
                     sendRegisterMessage(serverAddress, channel, dbKey);
                 }
@@ -201,6 +217,13 @@ public final class RmRpcClient extends AbstractRpcRemotingClient {
         }
     }
 
+    /**
+     * 当注册消息失败时 抛出异常
+     * @param serverAddress  the server address
+     * @param channel        the channel
+     * @param response       the response
+     * @param requestMessage the request message
+     */
     @Override
     public void onRegisterMsgFail(String serverAddress, Channel channel, Object response,
                                   AbstractMessage requestMessage) {
@@ -214,14 +237,15 @@ public final class RmRpcClient extends AbstractRpcRemotingClient {
     
     /**
      * Register new db key.
-     *
-     * @param resourceGroupId the resource group id
-     * @param resourceId      the db key
+     * 注册资源
+     * @param resourceGroupId the resource group id  所在资源组名
+     * @param resourceId      the db key  资源id
      */
     public void registerResource(String resourceGroupId, String resourceId) {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("register to RM resourceId:" + resourceId);
         }
+        // 尝试重新连接到 某个 server 组中 (应该是通过注册中心 + LoadBalance 进行负载之后 重连)
         if (getClientChannelManager().getChannels().isEmpty()) {
             getClientChannelManager().reconnect(transactionServiceGroup);
             return;
@@ -233,13 +257,22 @@ public final class RmRpcClient extends AbstractRpcRemotingClient {
                 if (LOGGER.isInfoEnabled()) {
                     LOGGER.info("register resource, resourceId:" + resourceId);
                 }
+                // 将资源发送所有server 中 保证一致性  (因为这样每个server 数据都是一致的 所以实现分布式的一致性)
                 sendRegisterMessage(serverAddress, rmChannel, resourceId);
             }
         }
     }
-    
+
+    /**
+     * 将注册请求发送到 server   这个注册是什么意思 告诉server 这里有一个 RM 管理器吗
+     * 既然有了注册中心为什么RM 和 TM 不直接交由注册中心管理呢
+     * @param serverAddress
+     * @param channel
+     * @param dbKey
+     */
     private void sendRegisterMessage(String serverAddress, Channel channel, String dbKey) {
         RegisterRMRequest message = new RegisterRMRequest(applicationId, transactionServiceGroup);
+        // 将资源信息设置到 message 中并进行异步发送
         message.setResourceIds(dbKey);
         try {
             super.sendAsyncRequestWithoutResponse(channel, message);
@@ -257,7 +290,11 @@ public final class RmRpcClient extends AbstractRpcRemotingClient {
             LOGGER.error(e.getMessage());
         }
     }
-    
+
+    /**
+     * 将管理资源拼接起来形成唯一标识
+     * @return
+     */
     private String getMergedResourceKeys() {
         Map<String, Resource> managedResources = resourceManager.getManagedResources();
         Set<String> resourceIds = managedResources.keySet();

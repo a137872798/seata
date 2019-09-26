@@ -20,7 +20,7 @@ import java.util.List;
 
 /**
  * The interface Registry service.
- *
+ * 注册中心 service 层
  * @param <T> the type parameter
  * @author jimin.jm @alibaba-inc.com
  * @date 2019 /1/31
@@ -42,7 +42,7 @@ public interface RegistryService<T> {
 
     /**
      * Register.
-     *
+     * 将某个服务地址 注册上去
      * @param address the address
      * @throws Exception the exception
      */
@@ -50,7 +50,7 @@ public interface RegistryService<T> {
 
     /**
      * Unregister.
-     *
+     * 注销
      * @param address the address
      * @throws Exception the exception
      */
@@ -58,7 +58,7 @@ public interface RegistryService<T> {
 
     /**
      * Subscribe.
-     *
+     * 为某个集群设置订阅者
      * @param cluster  the cluster
      * @param listener the listener
      * @throws Exception the exception
@@ -67,7 +67,7 @@ public interface RegistryService<T> {
 
     /**
      * Unsubscribe.
-     *
+     * 取消订阅
      * @param cluster  the cluster
      * @param listener the listener
      * @throws Exception the exception
@@ -76,7 +76,7 @@ public interface RegistryService<T> {
 
     /**
      * Lookup list.
-     *
+     * 使用集群名查询
      * @param key the key
      * @return the list
      * @throws Exception the exception

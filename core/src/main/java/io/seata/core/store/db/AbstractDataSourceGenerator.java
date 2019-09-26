@@ -24,7 +24,7 @@ import io.seata.core.constants.DBType;
 
 /**
  * The type Abstract data source generator.
- *
+ * dataSourceGenerator 骨架类
  * @author zhangsen
  * @date 2019 /4/24
  */
@@ -37,7 +37,7 @@ public abstract class AbstractDataSourceGenerator implements DataSourceGenerator
 
     /**
      * Get db type db type.
-     *
+     * 获取数据库类型
      * @return the db type
      */
     protected DBType getDBType() {
@@ -48,6 +48,7 @@ public abstract class AbstractDataSourceGenerator implements DataSourceGenerator
      * @return the db driver class name
      */
     protected String getDriverClassName() {
+        // 获取jdbc 引擎类
 		String driverClassName = CONFIG.getConfig(ConfigurationKeys.STORE_DB_DRIVER_CLASS_NAME);
 		if (StringUtils.isBlank(driverClassName)) {
 	            throw new StoreException("the {store.db.driver-class-name} can't be empty.");
@@ -56,7 +57,7 @@ public abstract class AbstractDataSourceGenerator implements DataSourceGenerator
 	}
     /**
      * Get url string.
-     *
+     * 获取数据库url
      * @return the string
      */
     protected String getUrl() {
@@ -69,7 +70,7 @@ public abstract class AbstractDataSourceGenerator implements DataSourceGenerator
 
     /**
      * Get user string.
-     *
+     * 获取用户信息 也就是用户名
      * @return the string
      */
     protected String getUser() {
@@ -82,7 +83,7 @@ public abstract class AbstractDataSourceGenerator implements DataSourceGenerator
 
     /**
      * Get password string.
-     *
+     * 密码信息
      * @return the string
      */
     protected String getPassword() {
@@ -92,7 +93,7 @@ public abstract class AbstractDataSourceGenerator implements DataSourceGenerator
 
     /**
      * Get min conn int.
-     *
+     * 获取最小连接数
      * @return the int
      */
     protected int getMinConn() {
@@ -102,7 +103,7 @@ public abstract class AbstractDataSourceGenerator implements DataSourceGenerator
 
     /**
      * Get max conn int.
-     *
+     * 最大连接数
      * @return the int
      */
     protected int getMaxConn() {
@@ -112,7 +113,7 @@ public abstract class AbstractDataSourceGenerator implements DataSourceGenerator
 
     /**
      * Get driver name string.
-     *
+     * 获取引擎名
      * @param dbType the db type
      * @return the string
      */
@@ -142,7 +143,7 @@ public abstract class AbstractDataSourceGenerator implements DataSourceGenerator
 
     /**
      * Get validation query string.
-     *
+     * 检测数据库是否正常
      * @param dbType the db type
      * @return the string
      */

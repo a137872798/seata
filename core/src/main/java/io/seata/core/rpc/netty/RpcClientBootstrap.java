@@ -48,23 +48,38 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Rpc client.
+ * 客户端引导程序
  *
  * @author jimin.jm @alibaba-inc.com
  * @author zhaojun
  */
 public class RpcClientBootstrap implements RemotingClient {
-    
+
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractRpcRemotingClient.class);
     private final NettyClientConfig nettyClientConfig;
     private final Bootstrap bootstrap = new Bootstrap();
     private final EventLoopGroup eventLoopGroupWorker;
+    /**
+     * 应该是 将channel 中耗时的操作都委托到该对象上
+     */
     private EventExecutorGroup defaultEventExecutorGroup;
+    /**
+     * 就是一个 管理 channel 的容器
+     */
     private AbstractChannelPoolMap<InetSocketAddress, FixedChannelPool> clientChannelPool;
     private final AtomicBoolean initialized = new AtomicBoolean(false);
     private static final String THREAD_PREFIX_SPLIT_CHAR = "_";
     private final ChannelHandler channelHandler;
     private final NettyPoolKey.TransactionRole transactionRole;
-    
+
+    /**
+     * 初始化 Client 对象
+     *
+     * @param nettyClientConfig
+     * @param eventExecutorGroup
+     * @param channelHandler
+     * @param transactionRole
+     */
     public RpcClientBootstrap(NettyClientConfig nettyClientConfig, final EventExecutorGroup eventExecutorGroup,
                               ChannelHandler channelHandler, NettyPoolKey.TransactionRole transactionRole) {
         if (null == nettyClientConfig) {
@@ -76,27 +91,31 @@ public class RpcClientBootstrap implements RemotingClient {
         this.nettyClientConfig = nettyClientConfig;
         int selectorThreadSizeThreadSize = this.nettyClientConfig.getClientSelectorThreadSize();
         this.transactionRole = transactionRole;
+        // 使用参数 设置 EventLoopGroup
         this.eventLoopGroupWorker = new NioEventLoopGroup(selectorThreadSizeThreadSize,
-            new NamedThreadFactory(getThreadPrefix(this.nettyClientConfig.getClientSelectorThreadPrefix()),
-                selectorThreadSizeThreadSize));
+                new NamedThreadFactory(getThreadPrefix(this.nettyClientConfig.getClientSelectorThreadPrefix()),
+                        selectorThreadSizeThreadSize));
         this.defaultEventExecutorGroup = eventExecutorGroup;
         this.channelHandler = channelHandler;
     }
-    
+
+    /**
+     * 启动client 对象
+     */
     @Override
     public void start() {
         if (this.defaultEventExecutorGroup == null) {
             this.defaultEventExecutorGroup = new DefaultEventExecutorGroup(nettyClientConfig.getClientWorkerThreads(),
-                new NamedThreadFactory(getThreadPrefix(nettyClientConfig.getClientWorkerThreadPrefix()),
-                    nettyClientConfig.getClientWorkerThreads()));
+                    new NamedThreadFactory(getThreadPrefix(nettyClientConfig.getClientWorkerThreadPrefix()),
+                            nettyClientConfig.getClientWorkerThreads()));
         }
         this.bootstrap.group(this.eventLoopGroupWorker).channel(
-            nettyClientConfig.getClientChannelClazz()).option(
-            ChannelOption.TCP_NODELAY, true).option(ChannelOption.SO_KEEPALIVE, true).option(
-            ChannelOption.CONNECT_TIMEOUT_MILLIS, nettyClientConfig.getConnectTimeoutMillis()).option(
-            ChannelOption.SO_SNDBUF, nettyClientConfig.getClientSocketSndBufSize()).option(ChannelOption.SO_RCVBUF,
-            nettyClientConfig.getClientSocketRcvBufSize());
-    
+                nettyClientConfig.getClientChannelClazz()).option(
+                ChannelOption.TCP_NODELAY, true).option(ChannelOption.SO_KEEPALIVE, true).option(
+                ChannelOption.CONNECT_TIMEOUT_MILLIS, nettyClientConfig.getConnectTimeoutMillis()).option(
+                ChannelOption.SO_SNDBUF, nettyClientConfig.getClientSocketSndBufSize()).option(ChannelOption.SO_RCVBUF,
+                nettyClientConfig.getClientSocketRcvBufSize());
+
         if (nettyClientConfig.enableNative()) {
             if (PlatformDependent.isOsx()) {
                 if (LOGGER.isInfoEnabled()) {
@@ -104,60 +123,79 @@ public class RpcClientBootstrap implements RemotingClient {
                 }
             } else {
                 bootstrap.option(EpollChannelOption.EPOLL_MODE, EpollMode.EDGE_TRIGGERED)
-                    .option(EpollChannelOption.TCP_QUICKACK, true);
+                        .option(EpollChannelOption.TCP_QUICKACK, true);
             }
         }
+        // 判断是否使用连接池  连接池是什么???
         if (nettyClientConfig.isUseConnPool()) {
             clientChannelPool = new AbstractChannelPoolMap<InetSocketAddress, FixedChannelPool>() {
                 @Override
                 protected FixedChannelPool newPool(InetSocketAddress key) {
                     return new FixedChannelPool(
-                        bootstrap.remoteAddress(key),
-                        new DefaultChannelPoolHandler() {
-                            @Override
-                            public void channelCreated(Channel ch) throws Exception {
-                                super.channelCreated(ch);
-                                final ChannelPipeline pipeline = ch.pipeline();
-                                pipeline.addLast(defaultEventExecutorGroup,
-                                    new IdleStateHandler(nettyClientConfig.getChannelMaxReadIdleSeconds(),
-                                        nettyClientConfig.getChannelMaxWriteIdleSeconds(),
-                                        nettyClientConfig.getChannelMaxAllIdleSeconds()));
-                                pipeline.addLast(defaultEventExecutorGroup, new RpcClientHandler());
-                            }
-                        },
-                        ChannelHealthChecker.ACTIVE,
-                        FixedChannelPool.AcquireTimeoutAction.FAIL,
-                        nettyClientConfig.getMaxAcquireConnMills(),
-                        nettyClientConfig.getPerHostMaxConn(),
-                        nettyClientConfig.getPendingConnSize(),
-                        false
+                            // 池中每个channel 共用一个 bootstrap 该对象本身封装了建立连接的逻辑
+                            bootstrap.remoteAddress(key),
+                            /**
+                             * 默认的pool 处理器 包含几个生命周期对应的钩子
+                             */
+                            new DefaultChannelPoolHandler() {
+                                /**
+                                 * 当某个channel 被触发时
+                                 * @param ch
+                                 * @throws Exception
+                                 */
+                                @Override
+                                public void channelCreated(Channel ch) throws Exception {
+                                    super.channelCreated(ch);
+                                    // 获取对应的 管道对象
+                                    final ChannelPipeline pipeline = ch.pipeline();
+                                    // 为每个新建的channel 对象追加 handler  注意这里指定了该handler 处理任务时使用的 线程池
+                                    pipeline.addLast(defaultEventExecutorGroup,
+                                            // 增加idle 检测对象
+                                            new IdleStateHandler(nettyClientConfig.getChannelMaxReadIdleSeconds(),
+                                                    nettyClientConfig.getChannelMaxWriteIdleSeconds(),
+                                                    nettyClientConfig.getChannelMaxAllIdleSeconds()));
+                                    // 追加client 处理器
+                                    pipeline.addLast(defaultEventExecutorGroup, new RpcClientHandler());
+                                }
+                            },
+                            ChannelHealthChecker.ACTIVE,
+                            FixedChannelPool.AcquireTimeoutAction.FAIL,
+                            nettyClientConfig.getMaxAcquireConnMills(),
+                            nettyClientConfig.getPerHostMaxConn(),
+                            nettyClientConfig.getPendingConnSize(),
+                            false
                     );
                 }
             };
         } else {
+            // 非池化连接 指定handler 对象
             bootstrap.handler(
-                new ChannelInitializer<SocketChannel>() {
-                
-                    @Override
-                    public void initChannel(SocketChannel ch) {
-                        ChannelPipeline pipeline = ch.pipeline();
-                        pipeline.addLast(
-                            new IdleStateHandler(nettyClientConfig.getChannelMaxReadIdleSeconds(),
-                                nettyClientConfig.getChannelMaxWriteIdleSeconds(),
-                                nettyClientConfig.getChannelMaxAllIdleSeconds()))
-                                .addLast(new ProtocolV1Decoder())
-                                .addLast(new ProtocolV1Encoder());
-                        if (null != channelHandler) {
-                            ch.pipeline().addLast(channelHandler);
+                    new ChannelInitializer<SocketChannel>() {
+
+                        @Override
+                        public void initChannel(SocketChannel ch) {
+                            ChannelPipeline pipeline = ch.pipeline();
+                            pipeline.addLast(
+                                    new IdleStateHandler(nettyClientConfig.getChannelMaxReadIdleSeconds(),
+                                            nettyClientConfig.getChannelMaxWriteIdleSeconds(),
+                                            nettyClientConfig.getChannelMaxAllIdleSeconds()))
+                                    // 池化的不用加编解码器吗 ???
+                                    .addLast(new ProtocolV1Decoder())
+                                    .addLast(new ProtocolV1Encoder());
+                            if (null != channelHandler) {
+                                ch.pipeline().addLast(channelHandler);
+                            }
                         }
-                    }
-                });
+                    });
         }
         if (initialized.compareAndSet(false, true) && LOGGER.isInfoEnabled()) {
             LOGGER.info("RpcClientBootstrap has started");
         }
     }
-    
+
+    /**
+     * 关闭池对象 关闭线程池
+     */
     @Override
     public void shutdown() {
         try {
@@ -172,17 +210,19 @@ public class RpcClientBootstrap implements RemotingClient {
             LOGGER.error("Failed to shutdown: {}", exx.getMessage());
         }
     }
-    
+
     /**
      * Gets new channel.
-     *
+     * 创建一条新的channel 对象
      * @param address the address
      * @return the new channel
      */
     public Channel getNewChannel(InetSocketAddress address) {
         Channel channel;
+        // 连接到指定地址
         ChannelFuture f = this.bootstrap.connect(address);
         try {
+            // 阻塞等待连接完成
             f.await(this.nettyClientConfig.getConnectTimeoutMillis(), TimeUnit.MILLISECONDS);
             if (f.isCancelled()) {
                 throw new FrameworkException(f.cause(), "connect cancelled, can not connect to services-server.");
@@ -196,7 +236,7 @@ public class RpcClientBootstrap implements RemotingClient {
         }
         return channel;
     }
-    
+
     /**
      * Gets thread prefix.
      *

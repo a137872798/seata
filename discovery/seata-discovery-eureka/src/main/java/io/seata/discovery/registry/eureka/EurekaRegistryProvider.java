@@ -20,6 +20,7 @@ import io.seata.discovery.registry.RegistryService;
 import io.seata.discovery.registry.RegistryProvider;
 
 /**
+ * 因为暂时只熟悉eureka 所以只看这个
  * @author xingfudeshi@gmail.com
  * @date 2019/04/12
  */
