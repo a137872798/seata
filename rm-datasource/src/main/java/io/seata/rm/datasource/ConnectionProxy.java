@@ -38,13 +38,16 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Connection proxy.
- *
+ * 连接代理对象
  * @author sharajava
  */
 public class ConnectionProxy extends AbstractConnectionProxy {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ConnectionProxy.class);
 
+    /**
+     * 包含一个上下文
+     */
     private ConnectionContext context = new ConnectionContext();
 
     private static final int DEFAULT_REPORT_RETRY_COUNT = 5;
@@ -271,10 +274,20 @@ public class ConnectionProxy extends AbstractConnectionProxy {
         }
     }
 
+    /**
+     * 锁重试策略
+     */
     public static class LockRetryPolicy {
         protected final static boolean LOCK_RETRY_POLICY_BRANCH_ROLLBACK_ON_CONFLICT =
                 ConfigurationFactory.getInstance().getBoolean(ConfigurationKeys.CLIENT_LOCK_RETRY_POLICY_BRANCH_ROLLBACK_ON_CONFLICT, true);
 
+        /**
+         * 如果上锁失败 选择重试 或者进行回滚
+         * @param callable
+         * @param <T>
+         * @return
+         * @throws Exception
+         */
         public <T> T execute(Callable<T> callable) throws Exception {
             if (LOCK_RETRY_POLICY_BRANCH_ROLLBACK_ON_CONFLICT) {
                 return callable.call();
@@ -283,12 +296,21 @@ public class ConnectionProxy extends AbstractConnectionProxy {
             }
         }
 
+        /**
+         * 当上锁发生冲突时 进行重试
+         * @param callable
+         * @param <T>
+         * @return
+         * @throws Exception
+         */
         protected <T> T doRetryOnLockConflict(Callable<T> callable) throws Exception {
             LockRetryController lockRetryController = new LockRetryController();
             while (true) {
                 try {
                     return callable.call();
+                    // 捕获冲突异常
                 } catch (LockConflictException lockConflict) {
+                    // 处理异常对象 由子类实现
                     onException(lockConflict);
                     lockRetryController.sleep(lockConflict);
                 } catch (Exception e) {

@@ -24,7 +24,7 @@ import io.seata.rm.datasource.exec.StatementCallback;
 
 /**
  * The type Statement proxy.
- *
+ * 会话代理对象
  * @param <T> the type parameter
  * @author sharajava
  */

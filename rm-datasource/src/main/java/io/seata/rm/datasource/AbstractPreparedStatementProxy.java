@@ -43,7 +43,7 @@ import io.seata.rm.datasource.sql.struct.Null;
 
 /**
  * The type Abstract prepared statement proxy.
- *
+ * 骨架类 代表 设置完参数的 会话对象
  * @author sharajava
  */
 public abstract class AbstractPreparedStatementProxy extends StatementProxy<PreparedStatement>
@@ -55,7 +55,9 @@ public abstract class AbstractPreparedStatementProxy extends StatementProxy<Prep
     protected ArrayList<Object>[] parameters;
 
     private void initParameterHolder() throws SQLException {
+        // 获取参数数量
         int paramCount = targetStatement.getParameterMetaData().getParameterCount();
+        // 每个参数都是一个 list 类型
         this.parameters = new ArrayList[paramCount];
         for (int i = 0; i < paramCount; i++) {
             parameters[i] = new ArrayList<>();

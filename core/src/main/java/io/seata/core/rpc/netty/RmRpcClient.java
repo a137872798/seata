@@ -43,7 +43,7 @@ import static io.seata.common.Constants.DBKEYS_SPLIT_CHAR;
 
 /**
  * The type Rm rpc client.
- * 客户端对象 对应TmRpcClient
+ * 客户端对象 代表着 本机作为一个资源管理器 可以向 server 上报事务状态
  * @author jimin.jm @alibaba-inc.com
  * @author zhaojun
  * @date 2018 /10/10

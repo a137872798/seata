@@ -48,7 +48,7 @@ import static io.seata.core.constants.ConfigurationKeys.CLIENT_ASYNC_COMMIT_BUFF
 
 /**
  * The type Async worker.
- *
+ * 异步工作者对象 实现了 RMInbound 对象 rm 处理 commit 和rollback的 逻辑都在这里实现
  * @author sharajava
  */
 public class AsyncWorker implements ResourceManagerInbound {
@@ -59,6 +59,9 @@ public class AsyncWorker implements ResourceManagerInbound {
 
     private static final int UNDOLOG_DELETE_LIMIT_SIZE = 1000;
 
+    /**
+     * 2阶段事务提交上下文
+     */
     private static class Phase2Context {
 
         /**
@@ -104,13 +107,20 @@ public class AsyncWorker implements ResourceManagerInbound {
     private static int ASYNC_COMMIT_BUFFER_LIMIT = ConfigurationFactory.getInstance().getInt(
             CLIENT_ASYNC_COMMIT_BUFFER_LIMIT, 10000);
 
+    /**
+     * 创建阻塞队列
+     */
     private static final BlockingQueue<Phase2Context> ASYNC_COMMIT_BUFFER = new LinkedBlockingQueue<>(ASYNC_COMMIT_BUFFER_LIMIT);
 
 
+    /**
+     * 定时器对象
+     */
     private static ScheduledExecutorService timerExecutor;
 
     @Override
     public BranchStatus branchCommit(BranchType branchType, String xid, long branchId, String resourceId, String applicationData) throws TransactionException {
+        // 当无法提交任务时 提示异常信息
         if (!ASYNC_COMMIT_BUFFER.offer(new Phase2Context(branchType, xid, branchId, resourceId, applicationData))) {
             LOGGER.warn("Async commit buffer is FULL. Rejected branch [" + branchId + "/" + xid + "] will be handled by housekeeping later.");
         }
@@ -119,6 +129,7 @@ public class AsyncWorker implements ResourceManagerInbound {
 
     /**
      * Init.
+     * 初始化线程池
      */
     public synchronized void init() {
         LOGGER.info("Async Commit Buffer Limit: " + ASYNC_COMMIT_BUFFER_LIMIT);
@@ -129,6 +140,7 @@ public class AsyncWorker implements ResourceManagerInbound {
             public void run() {
                 try {
 
+                    // 该线程池 专门执行commit 任务
                     doBranchCommits();
 
                 } catch (Throwable e) {
@@ -139,12 +151,17 @@ public class AsyncWorker implements ResourceManagerInbound {
         }, 10, 1000 * 1, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * 消费阻塞队列中的 提交任务
+     */
     private void doBranchCommits() {
         if (ASYNC_COMMIT_BUFFER.size() == 0) {
             return;
         }
 
         Map<String, List<Phase2Context>> mappedContexts = new HashMap<>(DEFAULT_RESOURCE_SIZE);
+
+        // 每次都会处理所有的任务  这里先将队列中所有任务设置到 map中
         while (!ASYNC_COMMIT_BUFFER.isEmpty()) {
             Phase2Context commitContext = ASYNC_COMMIT_BUFFER.poll();
             List<Phase2Context> contextsGroupedByResourceId = mappedContexts.get(commitContext.resourceId);
@@ -161,25 +178,32 @@ public class AsyncWorker implements ResourceManagerInbound {
             DataSourceProxy dataSourceProxy;
             try {
                 try {
+                    // 获取处理AT 的 manager 对象
                     DataSourceManager resourceManager = (DataSourceManager) DefaultResourceManager.get().getResourceManager(BranchType.AT);
+                    // 以 resourceId 作为key
                     dataSourceProxy = resourceManager.get(entry.getKey());
                     if (dataSourceProxy == null) {
                         throw new ShouldNeverHappenException("Failed to find resource on " + entry.getKey());
                     }
+                    // 获取连接对象
                     conn = dataSourceProxy.getPlainConnection();
                 } catch (SQLException sqle) {
                     LOGGER.warn("Failed to get connection for async committing on " + entry.getKey(), sqle);
                     continue;
                 }
+                // 获取对应的 上下文  看来可能在等待时间内有多个针对同一 resourceId 进行提交的上下文
                 List<Phase2Context> contextsGroupedByResourceId = entry.getValue();
+                // 代表准备删除的 操作日志
                 Set<String> xids = new LinkedHashSet<>(UNDOLOG_DELETE_LIMIT_SIZE);
                 Set<Long> branchIds = new LinkedHashSet<>(UNDOLOG_DELETE_LIMIT_SIZE);
                 for (Phase2Context commitContext : contextsGroupedByResourceId) {
                     xids.add(commitContext.xid);
                     branchIds.add(commitContext.branchId);
                     int maxSize = xids.size() > branchIds.size() ? xids.size() : branchIds.size();
+                    // 如果已经满了 立即删除 而不采用扩容的方式
                     if(maxSize == UNDOLOG_DELETE_LIMIT_SIZE){
                         try {
+                            // 删除 操作日志
                             UndoLogManagerFactory.getUndoLogManager(dataSourceProxy.getDbType()).batchDeleteUndoLog(xids, branchIds, conn);
                         } catch (Exception ex) {
                             LOGGER.warn("Failed to batch delete undo log [" + branchIds + "/" + xids + "]", ex);
@@ -211,6 +235,16 @@ public class AsyncWorker implements ResourceManagerInbound {
         }
     }
 
+    /**
+     * 不支持回滚
+     * @param branchType      the branch type
+     * @param xid             Transaction id.
+     * @param branchId        Branch id.
+     * @param resourceId      Resource id.
+     * @param applicationData Application data bind with this branch.
+     * @return
+     * @throws TransactionException
+     */
     @Override
     public BranchStatus branchRollback(BranchType branchType, String xid, long branchId, String resourceId, String applicationData) throws TransactionException {
         throw new NotSupportYetException();

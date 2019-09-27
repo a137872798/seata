@@ -47,7 +47,7 @@ public abstract class AbstractExceptionHandler {
     public interface Callback<T extends AbstractTransactionRequest, S extends AbstractTransactionResponse> {
         /**
          * Execute.
-         * 执行时机触发的回调???
+         * 触发时执行的逻辑
          * @param request  the request
          * @param response the response
          * @throws TransactionException the transaction exception

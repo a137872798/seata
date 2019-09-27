@@ -57,6 +57,9 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DataSourceManager.class);
 
+    /**
+     * 异步处理任务
+     */
     private ResourceManagerInbound asyncWorker;
 
     private Map<String, Resource> dataSourceCache = new ConcurrentHashMap<>();

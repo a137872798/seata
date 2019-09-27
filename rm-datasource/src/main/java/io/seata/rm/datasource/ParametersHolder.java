@@ -19,7 +19,7 @@ import java.util.ArrayList;
 
 /**
  * The interface Parameters holder.
- *
+ * 内部维护了一组参数
  * @author sharajava
  */
 public interface ParametersHolder {

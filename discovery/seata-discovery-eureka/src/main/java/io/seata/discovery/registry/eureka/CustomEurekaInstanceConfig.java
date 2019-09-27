@@ -20,15 +20,29 @@ import com.netflix.appinfo.EurekaInstanceConfig;
 import com.netflix.appinfo.MyDataCenterInstanceConfig;
 
 /**
+ * 自定义的 eureka配置信息
  * @author: rui_849217@163.com
  * @date: 2018/2/18
  * override MyDataCenterInstanceConfig for set value,
  * eg: instanceId \ipAddress \ applicationName...
  */
 public class CustomEurekaInstanceConfig extends MyDataCenterInstanceConfig implements EurekaInstanceConfig {
+
+    /**
+     * 应用名可以自行设置 而不是通过从配置中心获取
+     */
     private String applicationName;
+    /**
+     * 实例id
+     */
     private String instanceId;
+    /**
+     * ip地址
+     */
     private String ipAddress;
+    /**
+     * 默认端口号
+     */
     private int port = -1;
 
     @Override

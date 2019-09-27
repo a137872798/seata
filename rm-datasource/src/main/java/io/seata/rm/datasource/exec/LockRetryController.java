@@ -20,7 +20,7 @@ import io.seata.core.constants.ConfigurationKeys;
 
 /**
  * The type Lock retry controller.
- *
+ * 上锁重试控制器
  * @author sharajava
  */
 public class LockRetryController {

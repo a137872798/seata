@@ -32,7 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * the default RM event handler implement, deal with the phase two events
- *
+ * 默认的 RM 处理器  同样作为一个入口 通过SPI 机制加载其他RMHandler 实现
  * @author zhangsen
  */
 public class DefaultRMHandler extends AbstractRMHandler {

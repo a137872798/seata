@@ -45,9 +45,15 @@ public abstract class AbstractRMHandler extends AbstractExceptionHandler
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractRMHandler.class);
 
+    /**
+     * 处理请求并返回结果
+     * @param request the request
+     * @return
+     */
     @Override
     public BranchCommitResponse handle(BranchCommitRequest request) {
         BranchCommitResponse response = new BranchCommitResponse();
+        // 使用模板处理传入的请求
         exceptionHandleTemplate(new AbstractCallback<BranchCommitRequest, BranchCommitResponse>() {
             @Override
             public void execute(BranchCommitRequest request, BranchCommitResponse response)
@@ -80,7 +86,7 @@ public abstract class AbstractRMHandler extends AbstractExceptionHandler
 
     /**
      * Do branch commit.
-     *
+     * 处理提交请求
      * @param request  the request
      * @param response the response
      * @throws TransactionException the transaction exception
@@ -94,6 +100,7 @@ public abstract class AbstractRMHandler extends AbstractExceptionHandler
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Branch committing: " + xid + " " + branchId + " " + resourceId + " " + applicationData);
         }
+        // 将信息注册到 资源管理器上  之后将是否成功的状态返回
         BranchStatus status = getResourceManager().branchCommit(request.getBranchType(), xid, branchId, resourceId,
             applicationData);
         response.setXid(xid);
@@ -121,6 +128,7 @@ public abstract class AbstractRMHandler extends AbstractExceptionHandler
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Branch Rollbacking: " + xid + " " + branchId + " " + resourceId);
         }
+        // 使用资源管理器处理回滚
         BranchStatus status = getResourceManager().branchRollback(request.getBranchType(), xid, branchId, resourceId,
             applicationData);
         response.setXid(xid);
@@ -138,6 +146,12 @@ public abstract class AbstractRMHandler extends AbstractExceptionHandler
      */
     protected abstract ResourceManager getResourceManager();
 
+    /**
+     * 接受事务消息
+     * @param request received request message
+     * @param context context of the RPC
+     * @return
+     */
     @Override
     public AbstractResultMessage onRequest(AbstractMessage request, RpcContext context) {
         if (!(request instanceof AbstractTransactionRequestToRM)) {

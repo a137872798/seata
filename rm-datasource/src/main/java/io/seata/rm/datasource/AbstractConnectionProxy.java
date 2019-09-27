@@ -38,18 +38,20 @@ import java.util.concurrent.Executor;
 
 /**
  * The type Abstract connection proxy.
- *
+ * 连接到 dataSource 的代理对象
  * @author sharajava
  */
 public abstract class AbstractConnectionProxy implements Connection {
 
     /**
      * The Data source proxy.
+     * 使用代理的 datasource 对象
      */
     protected DataSourceProxy dataSourceProxy;
 
     /**
      * The Target connection.
+     * 内部维护的实际连接
      */
     protected Connection targetConnection;
 
@@ -94,12 +96,14 @@ public abstract class AbstractConnectionProxy implements Connection {
     @Override
     public Statement createStatement() throws SQLException {
         Statement targetStatement = getTargetConnection().createStatement();
+        // 封装会话对象
         return new StatementProxy(this, targetStatement);
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql) throws SQLException {
         PreparedStatement targetPreparedStatement = getTargetConnection().prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+        // 代理的已准备的 会话对象
         return new PreparedStatementProxy(this, targetPreparedStatement, sql);
     }
 

@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * abstract ResourceManager
- *
+ * 资源管理器 默认实现
  * @author zhangsen
  */
 public abstract class AbstractResourceManager implements ResourceManager {
@@ -46,10 +46,11 @@ public abstract class AbstractResourceManager implements ResourceManager {
 
     /**
      * registry branch record
-     * @param branchType the branch type
-     * @param resourceId the resource id
-     * @param clientId   the client id
-     * @param xid        the xid
+     * 记录 分布式事务中一个子事务的信息
+     * @param branchType the branch type  代表是基于 AT 还是 TCC
+     * @param resourceId the resource id 发送的资源id
+     * @param clientId   the client id  本客户端id
+     * @param xid        the xid   对应到哪个事务
      * @param lockKeys   the lock keys
      * @return
      * @throws TransactionException
@@ -62,12 +63,15 @@ public abstract class AbstractResourceManager implements ResourceManager {
             request.setLockKey(lockKeys);
             request.setResourceId(resourceId);
             request.setBranchType(branchType);
+            // 实际数据
             request.setApplicationData(applicationData);
 
+            // 发送数据并等待结果
             BranchRegisterResponse response = (BranchRegisterResponse) RmRpcClient.getInstance().sendMsgWithResponse(request);
             if (response.getResultCode() == ResultCode.Failed) {
                 throw new RmTransactionException(response.getTransactionExceptionCode(), String.format("Response[ %s ]", response.getMsg()));
             }
+            // 返回 branch 的id
             return response.getBranchId();
         } catch (TimeoutException toe) {
             throw new RmTransactionException(TransactionExceptionCode.IO, "RPC Timeout", toe);
@@ -78,6 +82,7 @@ public abstract class AbstractResourceManager implements ResourceManager {
 
     /**
      * report branch status
+     * 报告子事务状态
      * @param branchType      the branch type
      * @param xid             the xid
      * @param branchId        the branch id
@@ -91,6 +96,7 @@ public abstract class AbstractResourceManager implements ResourceManager {
             BranchReportRequest request = new BranchReportRequest();
             request.setXid(xid);
             request.setBranchId(branchId);
+            // 设置状态并发送
             request.setStatus(status);
             request.setApplicationData(applicationData);
 
@@ -105,6 +111,15 @@ public abstract class AbstractResourceManager implements ResourceManager {
         }
     }
 
+    /**
+     * 查询某些锁是否存在 其实就是简单的在数据库中查询一条记录
+     * @param branchType the branch type
+     * @param resourceId the resource id
+     * @param xid        the xid
+     * @param lockKeys   the lock keys
+     * @return
+     * @throws TransactionException
+     */
     @Override
     public boolean lockQuery(BranchType branchType, String resourceId, String xid, String lockKeys) throws TransactionException {
         return false;

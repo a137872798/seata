@@ -26,7 +26,7 @@ import io.seata.core.context.RootContext;
 
 /**
  * The type Abstract statement proxy.
- *
+ * 会话代理对象骨架
  * @author sharajava
  *
  * @param <T> the type parameter
@@ -35,16 +35,19 @@ public abstract class AbstractStatementProxy<T extends Statement> implements Sta
 
     /**
      * The Connection proxy.
+     * 维护了 连接对象
      */
     protected AbstractConnectionProxy connectionProxy;
 
     /**
      * The Target statement.
+     * 内部维护的真正的会话对象
      */
     protected T targetStatement;
 
     /**
      * The Target sql.
+     * 执行的sql 语句
      */
     protected String targetSQL;
 

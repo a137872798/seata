@@ -68,12 +68,26 @@ public class EurekaRegistryServiceImpl implements RegistryService<EurekaEventLis
     private static final int MAP_INITIAL_CAPACITY = 8;
     private static final String DEFAULT_WEIGHT = "1";
     private static final Configuration FILE_CONFIG = ConfigurationFactory.CURRENT_FILE_INSTANCE;
+
+    /**
+     * 集群容器
+     */
     private static ConcurrentMap<String, Set<InetSocketAddress>> clusterAddressMap;
 
     private static volatile boolean subscribeListener = false;
+
+    /**
+     * 内部包含监听器对象
+     */
     private static volatile ApplicationInfoManager applicationInfoManager;
+    /**
+     * 使用允许自定义 appId address 等的config 对象
+     */
     private static volatile CustomEurekaInstanceConfig instanceConfig;
     private static volatile EurekaRegistryServiceImpl instance;
+    /**
+     * 该对象对应到 eureka 的client 对象 该对象会从配置中心 拉取服务端地址 并且会在初始化后将自身注册到上面,还具备从注册中心拉取服务列表的能力
+     */
     private static volatile EurekaClient eurekaClient;
 
 
@@ -93,6 +107,11 @@ public class EurekaRegistryServiceImpl implements RegistryService<EurekaEventLis
         return instance;
     }
 
+    /**
+     * 将某个地址设置到注册中心
+     * @param address the address
+     * @throws Exception
+     */
     @Override
     public void register(InetSocketAddress address) throws Exception {
         NetUtil.validAddress(address);
@@ -100,7 +119,9 @@ public class EurekaRegistryServiceImpl implements RegistryService<EurekaEventLis
         instanceConfig.setPort(address.getPort());
         instanceConfig.setApplicationName(getApplicationName());
         instanceConfig.setInstanceId(getInstanceId());
+        // 做初始化工作
         getEurekaClient(true);
+        // 触发内部的监听器
         applicationInfoManager.setInstanceStatus(InstanceInfo.InstanceStatus.UP);
     }
 
@@ -124,6 +145,12 @@ public class EurekaRegistryServiceImpl implements RegistryService<EurekaEventLis
         getEurekaClient(false).unregisterEventListener(listener);
     }
 
+    /**
+     * 查询一组服务实例的地址
+     * @param key the key
+     * @return
+     * @throws Exception
+     */
     @Override
     public List<InetSocketAddress> lookup(String key) throws Exception {
         Configuration config = ConfigurationFactory.getInstance();
@@ -131,6 +158,7 @@ public class EurekaRegistryServiceImpl implements RegistryService<EurekaEventLis
         if (null == clusterName) {
             return null;
         }
+        // 这里会设置一个 刷新集群信息的监听器
         if (!subscribeListener) {
             refreshCluster();
             subscribe(null, new EurekaEventListener() {
@@ -145,6 +173,7 @@ public class EurekaRegistryServiceImpl implements RegistryService<EurekaEventLis
             });
         }
 
+        // 集群地址应该是存放在clusterAddressMap 中
         return new ArrayList<>(clusterAddressMap.get(clusterName.toUpperCase()));
     }
 
@@ -156,10 +185,15 @@ public class EurekaRegistryServiceImpl implements RegistryService<EurekaEventLis
         clean();
     }
 
+    /**
+     * 刷新集群信息
+     */
     private void refreshCluster() {
+        // 就是从注册中心获取当前所有应用  同时因为注册中心本身是定时更新列表的 理想情况下 该信息比较准确
         List<Application> applications = getEurekaClient(false).getApplications().getRegisteredApplications();
 
         if (CollectionUtils.isEmpty(applications)){
+            // 代表 应用都失效了 就清空列表
             clusterAddressMap.clear();
 
             if (LOGGER.isDebugEnabled()) {
@@ -178,6 +212,7 @@ public class EurekaRegistryServiceImpl implements RegistryService<EurekaEventLis
                 for (InstanceInfo instance : instances) {
                     addressSet.add(new InetSocketAddress(instance.getIPAddr(), instance.getPort()));
                 }
+                // 以应用名为单位 同一个应用名的属于同一个集群
                 collect.put(application.getName(), addressSet);
             }
         }
@@ -189,6 +224,11 @@ public class EurekaRegistryServiceImpl implements RegistryService<EurekaEventLis
         clusterAddressMap = collect;
     }
 
+    /**
+     * 获取eureka 配置信息
+     * @param needRegister 这里的注册是指是否将本实例注册到注册中心上
+     * @return
+     */
     private Properties getEurekaProperties(boolean needRegister) {
         Properties eurekaProperties = new Properties();
         eurekaProperties.setProperty(EUREKA_CONFIG_REFRESH_KEY, String.valueOf(EUREKA_REFRESH_INTERVAL));
@@ -221,6 +261,12 @@ public class EurekaRegistryServiceImpl implements RegistryService<EurekaEventLis
         return application;
     }
 
+    /**
+     * 获取 eurekaClient 对象
+     * @param needRegister
+     * @return
+     * @throws EurekaRegistryException
+     */
     private EurekaClient getEurekaClient(boolean needRegister) throws EurekaRegistryException {
         if (eurekaClient == null) {
             synchronized (EurekaRegistryServiceImpl.class) {
@@ -228,9 +274,12 @@ public class EurekaRegistryServiceImpl implements RegistryService<EurekaEventLis
                     if (!needRegister) {
                         instanceConfig = new CustomEurekaInstanceConfig();
                     }
+                    // 将prop 的配置信息 设置到 ConfManager上
                     ConfigurationManager.loadProperties(getEurekaProperties(needRegister));
+                    // 使用指定的配置去生成实例对象(注册中心的注册实例单位)
                     InstanceInfo instanceInfo = new EurekaConfigBasedInstanceInfoProvider(instanceConfig).get();
                     applicationInfoManager = new ApplicationInfoManager(instanceConfig, instanceInfo);
+                    // 将 AppManager 注册到client 上以便监听服务实例的上下线
                     eurekaClient = new DiscoveryClient(applicationInfoManager, new DefaultEurekaClientConfig());
                 } catch (Exception e) {
                     clean();

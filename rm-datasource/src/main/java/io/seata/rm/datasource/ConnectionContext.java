@@ -26,7 +26,7 @@ import io.seata.rm.datasource.undo.SQLUndoLog;
 
 /**
  * The type Connection context.
- *
+ * 连接上下文对象
  * @author sharajava
  */
 public class ConnectionContext {
@@ -34,12 +34,18 @@ public class ConnectionContext {
     private Long branchId;
     private boolean isGlobalLockRequire;
     //table and primary key should not be duplicated
+    /**
+     * 代表准备上锁的字段
+     */
     private Set<String> lockKeysBuffer = new HashSet<>();
+    /**
+     * 一组待处理的操作日志
+     */
     private List<SQLUndoLog> sqlUndoItemsBuffer = new ArrayList<>();
 
     /**
      * whether requires global lock in this connection
-     *
+     * 判断本次连接是否需要全局锁
      * @return
      */
     boolean isGlobalLockRequire() {
@@ -57,7 +63,7 @@ public class ConnectionContext {
 
     /**
      * Append lock key.
-     *
+     * 追加需要获取锁的 key
      * @param lockKey the lock key
      */
     void appendLockKey(String lockKey) {
@@ -66,7 +72,7 @@ public class ConnectionContext {
 
     /**
      * Append undo item.
-     *
+     * 追加回滚日志
      * @param sqlUndoLog the sql undo log
      */
     void appendUndoItem(SQLUndoLog sqlUndoLog) {
@@ -93,7 +99,7 @@ public class ConnectionContext {
 
     /**
      * Bind.
-     *
+     * 为本连接绑定唯一id
      * @param xid the xid
      */
     void bind(String xid) {
@@ -164,7 +170,7 @@ public class ConnectionContext {
 
     /**
      * Reset.
-     *
+     * 重置本连接的数据
      * @param xid the xid
      */
     void reset(String xid) {
@@ -177,7 +183,7 @@ public class ConnectionContext {
 
     /**
      * Build lock keys string.
-     *
+     * 构建锁语句
      * @return the string
      */
     public String buildLockKeys() {

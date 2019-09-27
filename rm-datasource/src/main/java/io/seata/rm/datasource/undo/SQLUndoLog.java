@@ -21,7 +21,7 @@ import io.seata.rm.datasource.sql.struct.TableRecords;
 
 /**
  * The type Sql undo log.
- *
+ * 操作日志
  * @author sharajava
  */
 public class SQLUndoLog {

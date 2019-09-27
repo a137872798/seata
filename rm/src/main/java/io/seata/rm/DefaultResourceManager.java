@@ -31,13 +31,15 @@ import io.seata.core.model.ResourceManager;
 
 /**
  * default resource manager, adapt all resource managers
- *
+ * 默认的资源管理器 该对象相当于一个管理对象 适配所有的 资源管理器实现
  * @author zhangsen
  */
 public class DefaultResourceManager implements ResourceManager {
 
     /**
      * all resource managers
+     * 存放AT
+     * 存放TCC     的资源管理器
      */
     protected static Map<BranchType, ResourceManager> resourceManagers
         = new ConcurrentHashMap<>();
@@ -65,8 +67,13 @@ public class DefaultResourceManager implements ResourceManager {
         resourceManagers.put(branchType, rm);
     }
 
+    /**
+     * 初始化资源管理器
+     */
     protected void initResourceManagers() {
         //init all resource managers
+        // 也就是说每个实现 都有对应的唯一BranchType??? 不然不就覆盖了吗
+        // dataSource 是 AT类型的
         List<ResourceManager> allResourceManagers = EnhancedServiceLoader.loadAll(ResourceManager.class);
         if (CollectionUtils.isNotEmpty(allResourceManagers)) {
             for (ResourceManager rm : allResourceManagers) {
@@ -74,6 +81,8 @@ public class DefaultResourceManager implements ResourceManager {
             }
         }
     }
+
+    // 操作委托给实际实现类
 
     @Override
     public BranchStatus branchCommit(BranchType branchType, String xid, long branchId,

@@ -25,12 +25,16 @@ import io.seata.rm.datasource.exec.StatementCallback;
 
 /**
  * The type Prepared statement proxy.
- *
+ * 代表一个准备完的 会话对象
  * @author sharajava
  */
 public class PreparedStatementProxy extends AbstractPreparedStatementProxy
     implements PreparedStatement, ParametersHolder {
 
+    /**
+     * 一组参数信息
+     * @return
+     */
     @Override
     public ArrayList<Object>[] getParameters() {
         return parameters;
