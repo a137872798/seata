@@ -50,7 +50,7 @@ import static io.seata.common.exception.FrameworkErrorCode.NoAvailableService;
 
 /**
  * The type Data source manager.
- *
+ * RM 骨架类 具备注册自身 以及报告状态等能力  这里代表 基于db 实现RM
  * @author sharajava
  */
 public class DataSourceManager extends AbstractResourceManager implements Initialize {
@@ -58,10 +58,13 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
     private static final Logger LOGGER = LoggerFactory.getLogger(DataSourceManager.class);
 
     /**
-     * 异步处理任务
+     * 这个接口抽象出 RM 的处理逻辑
      */
     private ResourceManagerInbound asyncWorker;
 
+    /**
+     * dataSource 缓存
+     */
     private Map<String, Resource> dataSourceCache = new ConcurrentHashMap<>();
 
     /**
@@ -73,19 +76,35 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
         this.asyncWorker = asyncWorker;
     }
 
+    /**
+     * 加锁查询数据
+     * @param branchType the branch type
+     * @param resourceId the resource id
+     * @param xid        the xid
+     * @param lockKeys   the lock keys
+     * @return
+     * @throws TransactionException
+     */
     @Override
     public boolean lockQuery(BranchType branchType, String resourceId, String xid, String lockKeys)
         throws TransactionException {
         try {
+            // 创建一个针对全局事务 申请上锁对象
             GlobalLockQueryRequest request = new GlobalLockQueryRequest();
             request.setXid(xid);
             request.setLockKey(lockKeys);
             request.setResourceId(resourceId);
 
             GlobalLockQueryResponse response = null;
+            // 如果当前正处在一个 全局事务中 就是看本线程是否持有了某个东西
             if (RootContext.inGlobalTransaction()) {
+                // 发送获取锁的请求 在send 方法内部会调用 loadBalance 选择一个合适的server地址并发送数据
+                // 注意 client 对象并不代表 连接对象  而是在内部维护了一个ChannelManager 对象 维护了通往server 的所有连接
+                // 可以节省创建channel 的资源消耗
                 response = (GlobalLockQueryResponse)RmRpcClient.getInstance().sendMsgWithResponse(request);
+            // 如果在本线程中绑定了某个标识(意味着需要获取全局事务锁)
             } else if (RootContext.requireGlobalLock()) {
+                // 通过均衡负载 获取合适的server 并从 channelManager 中获取channel 对象
                 response = (GlobalLockQueryResponse)RmRpcClient.getInstance().sendMsgWithResponse(loadBalance(),
                     request, NettyClientConfig.getRpcRequestTimeout());
             } else {
@@ -96,6 +115,7 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
                 throw new TransactionException(response.getTransactionExceptionCode(),
                     "Response[" + response.getMsg() + "]");
             }
+            // 判断是否上锁成功
             return response.isLockable();
         } catch (TimeoutException toe) {
             throw new RmTransactionException(TransactionExceptionCode.IO, "RPC Timeout", toe);
@@ -105,6 +125,10 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
 
     }
 
+    /**
+     * 通过事务Group 获取到一组合适的 serverAddress 地址 并通过均衡负载的方式获取到合适地址
+     * @return
+     */
     @SuppressWarnings("unchecked")
     private String loadBalance() {
         InetSocketAddress address = null;
@@ -123,7 +147,7 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
 
     /**
      * Init.
-     *
+     * 设置指定的异步worker 对象
      * @param asyncWorker the async worker
      */
     public synchronized void initAsyncWorker(ResourceManagerInbound asyncWorker) {
@@ -136,17 +160,29 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
     public DataSourceManager() {
     }
 
+    /**
+     * 初始化
+     */
     @Override
     public void init() {
+        // 构建一个 异步worker 对象 并执行init 方法
+        // 当 异步worker 对象被创建时 会定时从一个阻塞队列中拉取所有任务并进行执行
         AsyncWorker asyncWorker = new AsyncWorker();
         asyncWorker.init();
         initAsyncWorker(asyncWorker);
     }
 
+    /**
+     * 注册某个资源 (资源是如何被定义的 又要注册到哪)
+     * @param resource
+     */
     @Override
     public void registerResource(Resource resource) {
+        // dataSource 被看作是 一个Resource 对象
         DataSourceProxy dataSourceProxy = (DataSourceProxy)resource;
+        // 缓存资源
         dataSourceCache.put(dataSourceProxy.getResourceId(), dataSourceProxy);
+        // 将资源注册到RM 上   注意这里是注册到所有 server 上 就是为了保证C (一致性)
         super.registerResource(dataSourceProxy);
     }
 
@@ -157,7 +193,7 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
 
     /**
      * Get data source proxy.
-     *
+     * 从缓存对象中 获取某个 数据源
      * @param resourceId the resource id
      * @return the data source proxy
      */
@@ -165,12 +201,32 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
         return (DataSourceProxy)dataSourceCache.get(resourceId);
     }
 
+    /**
+     * 提交任务 委托给 Worker 对象
+     * @param branchType      the branch type
+     * @param xid             Transaction id.
+     * @param branchId        Branch id.
+     * @param resourceId      Resource id.
+     * @param applicationData Application data bind with this branch.
+     * @return
+     * @throws TransactionException
+     */
     @Override
     public BranchStatus branchCommit(BranchType branchType, String xid, long branchId, String resourceId,
                                      String applicationData) throws TransactionException {
         return asyncWorker.branchCommit(branchType, xid, branchId, resourceId, applicationData);
     }
 
+    /**
+     * 回滚任务也是委托给 Worker 对象
+     * @param branchType      the branch type
+     * @param xid             Transaction id.
+     * @param branchId        Branch id.
+     * @param resourceId      Resource id.
+     * @param applicationData Application data bind with this branch.
+     * @return
+     * @throws TransactionException
+     */
     @Override
     public BranchStatus branchRollback(BranchType branchType, String xid, long branchId, String resourceId,
                                        String applicationData) throws TransactionException {
@@ -179,6 +235,7 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
             throw new ShouldNeverHappenException();
         }
         try {
+            // 获取日志 对象 并执行回滚
             UndoLogManagerFactory.getUndoLogManager(dataSourceProxy.getDbType()).undo(dataSourceProxy, xid, branchId);
         } catch (TransactionException te) {
             if (LOGGER.isInfoEnabled()) {

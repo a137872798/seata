@@ -25,7 +25,7 @@ import java.sql.Statement;
 
 /**
  * The type Execute template.
- *
+ * 执行器模板
  * @author sharajava
  */
 public class ExecuteTemplate {
@@ -35,9 +35,9 @@ public class ExecuteTemplate {
      *
      * @param <T>               the type parameter
      * @param <S>               the type parameter
-     * @param statementProxy    the statement proxy
-     * @param statementCallback the statement callback
-     * @param args              the args
+     * @param statementProxy    the statement proxy     使用一个会话代理对象
+     * @param statementCallback the statement callback   传入一个回调对象
+     * @param args              the args    一组相关参数
      * @return the t
      * @throws SQLException the sql exception
      */
@@ -52,7 +52,7 @@ public class ExecuteTemplate {
      *
      * @param <T>               the type parameter
      * @param <S>               the type parameter
-     * @param sqlRecognizer     the sql recognizer
+     * @param sqlRecognizer     the sql recognizer    sql 解析器 看来还支持sql本身是动态的 sql语句配合该解析器 已经传入的一组参数 执行sql
      * @param statementProxy    the statement proxy
      * @param statementCallback the statement callback
      * @param args              the args
@@ -64,11 +64,16 @@ public class ExecuteTemplate {
                                                      StatementCallback<T, S> statementCallback,
                                                      Object... args) throws SQLException {
 
+        // 非开启分布式事务 且 不需要获取全局锁
         if (!RootContext.inGlobalTransaction() && !RootContext.requireGlobalLock()) {
             // Just work as original statement
+            // 执行内部封装的普通会话对象
             return statementCallback.execute(statementProxy.getTargetStatement(), args);
         }
 
+        // 代表要处理一个分布式事务
+
+        // 如果解析器不存在的情况下  从 解析器工厂中生成对应的解析器对象
         if (sqlRecognizer == null) {
             sqlRecognizer = SQLVisitorFactory.get(
                     statementProxy.getTargetSQL(),

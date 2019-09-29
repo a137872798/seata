@@ -42,7 +42,7 @@ import io.seata.rm.datasource.undo.SQLUndoLog;
 
 /**
  * The type Base transactional executor.
- *
+ * 基于事务的 执行器对象
  * @author sharajava
  *
  * @param <T> the type parameter
@@ -52,19 +52,25 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
 
     /**
      * The Statement proxy.
+     * 会话代理对象 内部维护了真正的statement 对象
      */
     protected StatementProxy<S> statementProxy;
 
     /**
      * The Statement callback.
+     * 回调对象 实际上 sql 是由该对象执行的
      */
     protected StatementCallback<T, S> statementCallback;
 
     /**
      * The Sql recognizer.
+     * sql解析器对象
      */
     protected SQLRecognizer sqlRecognizer;
 
+    /**
+     * 表相关的元数据
+     */
     private TableMeta tableMeta;
 
     /**

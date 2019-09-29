@@ -24,7 +24,7 @@ import io.seata.rm.datasource.exec.StatementCallback;
 
 /**
  * The type Statement proxy.
- * 会话代理对象
+ * 会话代理对象  AbstractStatementProxy 对象只是实现了代理模式 没有什么特别的处理逻辑
  * @param <T> the type parameter
  * @author sharajava
  */
@@ -33,9 +33,9 @@ public class StatementProxy<T extends Statement> extends AbstractStatementProxy<
     /**
      * Instantiates a new Statement proxy.
      *
-     * @param connectionWrapper the connection wrapper
-     * @param targetStatement   the target statement
-     * @param targetSQL         the target sql
+     * @param connectionWrapper the connection wrapper    连接的包装对象
+     * @param targetStatement   the target statement     真正的 statement 对象
+     * @param targetSQL         the target sql      需要执行的sql语句
      * @throws SQLException the sql exception
      */
     public StatementProxy(AbstractConnectionProxy connectionWrapper, T targetStatement, String targetSQL)
@@ -59,6 +59,12 @@ public class StatementProxy<T extends Statement> extends AbstractStatementProxy<
         return (ConnectionProxy) super.getConnectionProxy();
     }
 
+    /**
+     * 执行 sql 语句 并返回 结果集   当没有使用sql 进行初始化时
+     * @param sql
+     * @return
+     * @throws SQLException
+     */
     @Override
     public ResultSet executeQuery(String sql) throws SQLException {
         this.targetSQL = sql;

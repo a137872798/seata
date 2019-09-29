@@ -19,7 +19,7 @@ package io.seata.rm.datasource.exec;
  * The interface Executor.
  *
  * @author sharajava
- *
+ * 执行者接口 不同于 JDK的 Executor   具备接受参数 并生成对应结果的 方法
  * @param <T> the type parameter
  */
 public interface Executor<T> {

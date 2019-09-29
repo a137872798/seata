@@ -32,6 +32,9 @@ import io.seata.rm.datasource.undo.SQLUndoLog;
 public class ConnectionContext {
     private String xid;
     private Long branchId;
+    /**
+     * 是否需要获取到全局锁
+     */
     private boolean isGlobalLockRequire;
     //table and primary key should not be duplicated
     /**

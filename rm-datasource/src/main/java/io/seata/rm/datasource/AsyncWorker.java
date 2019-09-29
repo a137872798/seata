@@ -95,6 +95,7 @@ public class AsyncWorker implements ResourceManagerInbound {
         String resourceId;
         /**
          * The Application data.
+         * 应用数据 难道是序列化过的???
          */
         String applicationData;
 
@@ -153,6 +154,7 @@ public class AsyncWorker implements ResourceManagerInbound {
 
     /**
      * 消费阻塞队列中的 提交任务
+     * 这里怎么没有看到提交动作 只是看到了删除日志的动作 ???
      */
     private void doBranchCommits() {
         if (ASYNC_COMMIT_BUFFER.size() == 0) {
@@ -164,6 +166,7 @@ public class AsyncWorker implements ResourceManagerInbound {
         // 每次都会处理所有的任务  这里先将队列中所有任务设置到 map中
         while (!ASYNC_COMMIT_BUFFER.isEmpty()) {
             Phase2Context commitContext = ASYNC_COMMIT_BUFFER.poll();
+            // 将任务队列中所有元素取出来后 将其设置到一个map 中 string 代表同属一个资源(事务)  上下文对象推测就是分布式事务中各个分支事务
             List<Phase2Context> contextsGroupedByResourceId = mappedContexts.get(commitContext.resourceId);
             if (contextsGroupedByResourceId == null) {
                 contextsGroupedByResourceId = new ArrayList<>();
@@ -173,6 +176,7 @@ public class AsyncWorker implements ResourceManagerInbound {
 
         }
 
+        // 遍历上面生成的map 实际上可以用一个流函数去操作吧
         for (Map.Entry<String, List<Phase2Context>> entry : mappedContexts.entrySet()) {
             Connection conn = null;
             DataSourceProxy dataSourceProxy;
@@ -180,18 +184,18 @@ public class AsyncWorker implements ResourceManagerInbound {
                 try {
                     // 获取处理AT 的 manager 对象
                     DataSourceManager resourceManager = (DataSourceManager) DefaultResourceManager.get().getResourceManager(BranchType.AT);
-                    // 以 resourceId 作为key
+                    // 每个 key 都有自己的 dataSource 对象 他们被缓存在 DataSourceManager 中
                     dataSourceProxy = resourceManager.get(entry.getKey());
                     if (dataSourceProxy == null) {
                         throw new ShouldNeverHappenException("Failed to find resource on " + entry.getKey());
                     }
-                    // 获取连接对象
+                    // 获取真正的连接对象
                     conn = dataSourceProxy.getPlainConnection();
                 } catch (SQLException sqle) {
                     LOGGER.warn("Failed to get connection for async committing on " + entry.getKey(), sqle);
                     continue;
                 }
-                // 获取对应的 上下文  看来可能在等待时间内有多个针对同一 resourceId 进行提交的上下文
+                // 获取某个 分布式事务中所有提交的上下文信息 每个都代表一个 branch的信息
                 List<Phase2Context> contextsGroupedByResourceId = entry.getValue();
                 // 代表准备删除的 操作日志
                 Set<String> xids = new LinkedHashSet<>(UNDOLOG_DELETE_LIMIT_SIZE);

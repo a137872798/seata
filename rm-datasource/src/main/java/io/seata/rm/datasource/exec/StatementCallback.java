@@ -20,7 +20,7 @@ import java.sql.Statement;
 
 /**
  * The interface Statement callback.
- *
+ * 该回调对象封装了 执行sql 的能力
  * @author sharajava
  *
  * @param <T> the type parameter

@@ -34,7 +34,7 @@ import java.util.List;
 
 /**
  * The type Sql visitor factory.
- *
+ * sql 的观察者工厂
  * @author sharajava
  */
 public class SQLVisitorFactory {
@@ -42,8 +42,8 @@ public class SQLVisitorFactory {
     /**
      * Get sql recognizer.
      *
-     * @param sql    the sql
-     * @param dbType the db type
+     * @param sql    the sql   通过指定的sql语句
+     * @param dbType the db type   和 db类型 来获取解析器对象
      * @return the sql recognizer
      */
     public static SQLRecognizer get(String sql, String dbType) {

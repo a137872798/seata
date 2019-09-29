@@ -103,13 +103,14 @@ public class ConnectionProxy extends AbstractConnectionProxy {
 
     /**
      * Check lock.
-     *
+     * 检查当前锁状态
      * @param lockKeys the lockKeys
      * @throws SQLException the sql exception
      */
     public void checkLock(String lockKeys) throws SQLException {
         // Just check lock without requiring lock by now.
         try {
+            // 判断是否可锁
             boolean lockable = DefaultResourceManager.get().lockQuery(BranchType.AT,
                 getDataSourceProxy().getResourceId(), context.getXid(), lockKeys);
             if (!lockable) {
@@ -138,10 +139,21 @@ public class ConnectionProxy extends AbstractConnectionProxy {
         return result;
     }
 
+    /**
+     * 判断传入的异常是否是 锁字段冲突
+     * @param te
+     * @throws SQLException
+     */
     private void recognizeLockKeyConflictException(TransactionException te) throws SQLException {
         recognizeLockKeyConflictException(te, null);
     }
 
+    /**
+     * 判断传入的异常是否是 锁冲突异常
+     * @param te
+     * @param lockKeys
+     * @throws SQLException
+     */
     private void recognizeLockKeyConflictException(TransactionException te, String lockKeys) throws SQLException {
         if (te.getCode() == TransactionExceptionCode.LockKeyConflict) {
             StringBuilder reasonBuilder = new StringBuilder("get global lock fail, xid:" + context.getXid());
@@ -150,6 +162,7 @@ public class ConnectionProxy extends AbstractConnectionProxy {
             }
             throw new LockConflictException(reasonBuilder.toString());
         } else {
+            // 非冲突情况 抛出一个包装异常
             throw new SQLException(te);
         }
 
@@ -173,10 +186,15 @@ public class ConnectionProxy extends AbstractConnectionProxy {
         context.appendLockKey(lockKey);
     }
 
+    /**
+     * 执行 commit 方法 mybatis 中 实现各种加工逻辑 是通过装饰器模式 而这里 是代理模式
+     * @throws SQLException
+     */
     @Override
     public void commit() throws SQLException {
         try {
             LOCK_RETRY_POLICY.execute(() -> {
+                // 传入一个 代表提交的call 对象
                 doCommit();
                 return null;
             });
@@ -187,38 +205,61 @@ public class ConnectionProxy extends AbstractConnectionProxy {
         }
     }
 
+    /**
+     * Conn 的commit 方法被转发到这里
+     * @throws SQLException
+     */
     private void doCommit() throws SQLException {
+        // 如果是全局事务  应该是连同下面所有的 branch 都提交
         if (context.inGlobalTransaction()) {
+            // 处理全局事务提交
             processGlobalTransactionCommit();
+            // 判断是否需要 获取全局锁
         } else if (context.isGlobalLockRequire()) {
+            // 在获取全局锁的基础上 执行本地提交
             processLocalCommitWithGlobalLocks();
         } else {
+            // 不需要就直接提交就好
             targetConnection.commit();
         }
     }
 
+    /**
+     * 在获取全局锁的基础上进行提交
+     * @throws SQLException
+     */
     private void processLocalCommitWithGlobalLocks() throws SQLException {
 
+        // 构建锁语句 并执行
         checkLock(context.buildLockKeys());
         try {
             targetConnection.commit();
         } catch (Throwable ex) {
             throw new SQLException(ex);
         }
+        // 已经提交的化 就可以重置掉上下文了
         context.reset();
     }
 
+    /**
+     * 代表在 分布式事务的环境下进行处理
+     * @throws SQLException
+     */
     private void processGlobalTransactionCommit() throws SQLException {
         try {
+            // 将本次操作 作为全局事务中的 一个 branch 进行注册
+            // 都要提交了 还注册什么???
             register();
         } catch (TransactionException e) {
             recognizeLockKeyConflictException(e, context.buildLockKeys());
         }
 
         try {
+            // 将context 当前维护的所有 撤销日志 刷盘到某个地方
             if (context.hasUndoLog()) {
                 UndoLogManagerFactory.getUndoLogManager(this.getDbType()).flushUndoLogs(this);
             }
+            // 进行提交
             targetConnection.commit();
         } catch (Throwable ex) {
             LOGGER.error("process connectionProxy commit error: {}", ex.getMessage(), ex);
@@ -229,12 +270,20 @@ public class ConnectionProxy extends AbstractConnectionProxy {
         context.reset();
     }
 
+    /**
+     * 将本事务进行注册
+     * @throws TransactionException
+     */
     private void register() throws TransactionException {
         Long branchId = DefaultResourceManager.get().branchRegister(BranchType.AT, getDataSourceProxy().getResourceId(),
             null, context.getXid(), null, context.buildLockKeys());
         context.setBranchId(branchId);
     }
 
+    /**
+     * 进行事务回滚
+     * @throws SQLException
+     */
     @Override
     public void rollback() throws SQLException {
         targetConnection.rollback();
@@ -283,7 +332,7 @@ public class ConnectionProxy extends AbstractConnectionProxy {
 
         /**
          * 如果上锁失败 选择重试 或者进行回滚
-         * @param callable
+         * @param callable  call 对象内部封装了执行逻辑
          * @param <T>
          * @return
          * @throws Exception

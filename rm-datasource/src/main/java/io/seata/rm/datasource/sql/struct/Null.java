@@ -17,7 +17,7 @@ package io.seata.rm.datasource.sql.struct;
 
 /**
  * The type Null.
- *
+ * 代表没有数据
  * @author sharajava
  */
 public class Null {

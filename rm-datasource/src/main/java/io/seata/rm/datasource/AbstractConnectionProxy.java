@@ -96,52 +96,89 @@ public abstract class AbstractConnectionProxy implements Connection {
     @Override
     public Statement createStatement() throws SQLException {
         Statement targetStatement = getTargetConnection().createStatement();
-        // 封装会话对象
+        // 封装会话对象  每个  statement 都会绑定一个sql对象 而这种情况就是 没有设置默认的 sql 不过在执行对应的sql语句时可以通过从外部传入来指定
         return new StatementProxy(this, targetStatement);
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql) throws SQLException {
+        // 该方法由 dataSource 层实现 并返回一个会话对象
         PreparedStatement targetPreparedStatement = getTargetConnection().prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
         // 代理的已准备的 会话对象
         return new PreparedStatementProxy(this, targetPreparedStatement, sql);
     }
 
+    /**
+     * 准备 执行某个sql
+     * @param sql
+     * @return
+     * @throws SQLException
+     */
     @Override
     public CallableStatement prepareCall(String sql) throws SQLException {
+        // 这里不允许是全局任务
         RootContext.assertNotInGlobalTransaction();
         return targetConnection.prepareCall(sql);
     }
 
+    /**
+     * 使用本地语法???
+     * @param sql
+     * @return
+     * @throws SQLException
+     */
     @Override
     public String nativeSQL(String sql) throws SQLException {
         return targetConnection.nativeSQL(sql);
     }
 
+    /**
+     * 判断是否是自动提交
+     * @return
+     * @throws SQLException
+     */
     @Override
     public boolean getAutoCommit() throws SQLException {
         return targetConnection.getAutoCommit();
     }
 
+    /**
+     * 关闭连接
+     * @throws SQLException
+     */
     @Override
     public void close() throws SQLException {
         targetConnection.close();
     }
 
+    /**
+     * 判断连接是否已经被关闭
+     * @return
+     * @throws SQLException
+     */
     @Override
     public boolean isClosed() throws SQLException {
         return targetConnection.isClosed();
     }
 
+    /**
+     * 获取数据库的元数据信息
+     * @return
+     * @throws SQLException
+     */
     @Override
     public DatabaseMetaData getMetaData() throws SQLException {
         return targetConnection.getMetaData();
     }
 
+    /**
+     * 设置成只读事务
+     * @param readOnly
+     * @throws SQLException
+     */
     @Override
     public void setReadOnly(boolean readOnly) throws SQLException {
         targetConnection.setReadOnly(readOnly);
-
     }
 
     @Override
@@ -149,6 +186,11 @@ public abstract class AbstractConnectionProxy implements Connection {
         return targetConnection.isReadOnly();
     }
 
+    /**
+     * 设置命名空间 ??? 如果某个 db 不支持该方法 就不会做处理
+     * @param catalog
+     * @throws SQLException
+     */
     @Override
     public void setCatalog(String catalog) throws SQLException {
         targetConnection.setCatalog(catalog);
@@ -160,6 +202,11 @@ public abstract class AbstractConnectionProxy implements Connection {
         return targetConnection.getCatalog();
     }
 
+    /**
+     * 设置事务隔离级别
+     * @param level
+     * @throws SQLException
+     */
     @Override
     public void setTransactionIsolation(int level) throws SQLException {
         targetConnection.setTransactionIsolation(level);
@@ -171,47 +218,93 @@ public abstract class AbstractConnectionProxy implements Connection {
         return targetConnection.getTransactionIsolation();
     }
 
+    /**
+     * SQLWarning  就是 SQLExeception对象
+     * @return
+     * @throws SQLException
+     */
     @Override
     public SQLWarning getWarnings() throws SQLException {
         return targetConnection.getWarnings();
     }
 
+    /**
+     * 清除 异常对象
+     * @throws SQLException
+     */
     @Override
     public void clearWarnings() throws SQLException {
         targetConnection.clearWarnings();
 
     }
 
+    /**
+     * 创建会话对象
+     * @param resultSetType   设置结果集类型
+     * @param resultSetConcurrency    代表并发级别 允许 READ-ONLY 和  UPDATE-TABLE
+     * @return
+     * @throws SQLException
+     */
     @Override
     public Statement createStatement(int resultSetType, int resultSetConcurrency) throws SQLException {
         Statement statement = targetConnection.createStatement(resultSetType, resultSetConcurrency);
+        // 包装会话对象后返回
         return new StatementProxy<Statement>(this, statement);
     }
 
+    /**
+     * PreparedStatement 对应着 批量处理
+     * @param sql
+     * @param resultSetType
+     * @param resultSetConcurrency
+     * @return
+     * @throws SQLException
+     */
     @Override
     public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency)
         throws SQLException {
+        // 创建对应的 批处理会话对象 使用对应的 代理对象进行包装
         PreparedStatement preparedStatement = targetConnection.prepareStatement(sql, resultSetType,
             resultSetConcurrency);
         return new PreparedStatementProxy(this, preparedStatement, sql);
     }
 
+    /**
+     * 生成回调对象
+     * @param sql
+     * @param resultSetType
+     * @param resultSetConcurrency
+     * @return
+     * @throws SQLException
+     */
     @Override
     public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency) throws SQLException {
         RootContext.assertNotInGlobalTransaction();
         return targetConnection.prepareCall(sql, resultSetType, resultSetConcurrency);
     }
 
+    /**
+     * 获取 类型容器   除非该应用添加了一个实体 否则该方法返回empty
+     * @return
+     * @throws SQLException
+     */
     @Override
     public Map<String, Class<?>> getTypeMap() throws SQLException {
         return targetConnection.getTypeMap();
     }
 
+    /**
+     * 主动为 连接设置类型map 对应到上面的方法
+     * @param map
+     * @throws SQLException
+     */
     @Override
     public void setTypeMap(Map<String, Class<?>> map) throws SQLException {
         targetConnection.setTypeMap(map);
 
     }
+
+    // 以下方法也是一样 会将方法委托给内部真正的conn 对象
 
     @Override
     public void setHoldability(int holdability) throws SQLException {

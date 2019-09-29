@@ -28,13 +28,22 @@ import io.seata.common.util.CollectionUtils;
 
 /**
  * The type Table meta.
- *
+ * 表元数据
  * @author sharajava
  */
 public class TableMeta {
+    /**
+     * 表名
+     */
     private String tableName;
 
+    /**
+     * 所有列
+     */
     private Map<String, ColumnMeta> allColumns = new LinkedHashMap<String, ColumnMeta>();
+    /**
+     * 所有下标
+     */
     private Map<String, IndexMeta> allIndexes = new LinkedHashMap<String, IndexMeta>();
 
     /**
@@ -57,13 +66,14 @@ public class TableMeta {
 
     /**
      * Gets column meta.
-     *
+     * 获取某一列的元数据信息
      * @param colName the col name
      * @return the column meta
      */
     public ColumnMeta getColumnMeta(String colName) {
         ColumnMeta col = allColumns.get(colName);
         if (col == null) {
+            // 猜测 使用的 colName 也可能被 `` 包裹 要去除掉
             if (colName.charAt(0) == '`') {
                 col = allColumns.get(colName.substring(1, colName.length() - 1));
             } else {
@@ -93,7 +103,7 @@ public class TableMeta {
 
     /**
      * Gets auto increase column.
-     *
+     * 找到 col中 自动增长的列
      * @return the auto increase column
      */
     public ColumnMeta getAutoIncreaseColumn() {
@@ -109,14 +119,16 @@ public class TableMeta {
 
     /**
      * Gets primary key map.
-     *
+     * 获取主键
      * @return the primary key map
      */
     public Map<String, ColumnMeta> getPrimaryKeyMap() {
         Map<String, ColumnMeta> pk = new HashMap<String, ColumnMeta>();
         for (Entry<String, IndexMeta> entry : allIndexes.entrySet()) {
             IndexMeta index = entry.getValue();
+            // 这里从下标元数据中寻找主键
             if (index.getIndextype().value() == IndexType.PRIMARY.value()) {
+                // 获取 该 index 下对应的所有 col   这里是什么意思???
                 for (ColumnMeta col : index.getValues()) {
                     pk.put(col.getColumnName(), col);
                 }

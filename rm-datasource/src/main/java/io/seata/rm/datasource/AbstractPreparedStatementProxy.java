@@ -43,7 +43,8 @@ import io.seata.rm.datasource.sql.struct.Null;
 
 /**
  * The type Abstract prepared statement proxy.
- * 骨架类 代表 设置完参数的 会话对象
+ * Statement 对象代表着 未设置参数的 会话对象 只具备 指定功能
+ * PreparedStatement 代表 具备设置参数的能力
  * @author sharajava
  */
 public abstract class AbstractPreparedStatementProxy extends StatementProxy<PreparedStatement>
@@ -51,6 +52,7 @@ public abstract class AbstractPreparedStatementProxy extends StatementProxy<Prep
 
     /**
      * The Parameters.
+     * Statement 对象本身具备批处理能力
      */
     protected ArrayList<Object>[] parameters;
 
@@ -66,7 +68,9 @@ public abstract class AbstractPreparedStatementProxy extends StatementProxy<Prep
 
     /**
      * Instantiates a new Abstract prepared statement proxy.
-     *
+     * 一般的套路都是 从 connProxy 开始 调用某个 conn的方法创建对应的会话对象
+     * 之后 便创建一个对象的 代理对象 比如获取一个 PreparedStatement 对象 之后便返回一个 PreparedStatementProxy 对象
+     * 并且创建该对象的参数是  ConnProxy + PreaparedStatementProxy + sql
      * @param connectionProxy the connection proxy
      * @param targetStatement the target statement
      * @param targetSQL       the target sql
@@ -93,7 +97,7 @@ public abstract class AbstractPreparedStatementProxy extends StatementProxy<Prep
 
     /**
      * Gets params by index.
-     *
+     * 获取对应参数的值
      * @param index the index
      * @return the params by index
      */
@@ -103,7 +107,7 @@ public abstract class AbstractPreparedStatementProxy extends StatementProxy<Prep
 
     /**
      * Sets param by index.
-     *
+     * 为指定的参数设置值
      * @param index the index
      * @param x     the x
      */
@@ -113,9 +117,12 @@ public abstract class AbstractPreparedStatementProxy extends StatementProxy<Prep
 
     @Override
     public void setNull(int parameterIndex, int sqlType) throws SQLException {
+        // 为 参数设置null
         setParamByIndex(parameterIndex, Null.get());
         targetStatement.setNull(parameterIndex, sqlType);
     }
+
+    // 设置参数的一系列方法
 
     @Override
     public void setBoolean(int parameterIndex, boolean x) throws SQLException {
@@ -247,6 +254,8 @@ public abstract class AbstractPreparedStatementProxy extends StatementProxy<Prep
         setParamByIndex(parameterIndex, x);
         targetStatement.setObject(parameterIndex, x);
     }
+
+    // 添加批量参数 到会话对象中
 
     @Override
     public void addBatch() throws SQLException {
