@@ -219,14 +219,18 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
                 // to prevent the local transaction of the first phase of other programs from being correctly submitted.
                 // See https://github.com/seata/seata/issues/489
 
+                // 代表查询到了 对应的 语句
                 if (exists) {
+                    // 删除 撤销语句
                     deleteUndoLog(xid, branchId, conn);
+                    // 提交事务
                     conn.commit();
                     if (LOGGER.isInfoEnabled()) {
                         LOGGER.info("xid {} branch {}, undo_log deleted with {}",
                                 xid, branchId, State.GlobalFinished.name());
                     }
                 } else {
+                    // 插入全局事务结束的 撤销语句
                     insertUndoLogWithGlobalFinished(xid, branchId, UndoLogParserFactory.getInstance(), conn);
                     conn.commit();
                     if (LOGGER.isInfoEnabled()) {
@@ -245,6 +249,7 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
             } catch (Throwable e) {
                 if (conn != null) {
                     try {
+                        // 出现异常时进行回滚
                         conn.rollback();
                     } catch (SQLException rollbackEx) {
                         LOGGER.warn("Failed to close JDBC resource while undo ... ", rollbackEx);
@@ -274,6 +279,14 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
         }
     }
 
+    /**
+     * 删除撤销日志
+     * @param logCreated the created time
+     * @param limitRows the limit rows
+     * @param conn the connection
+     * @return
+     * @throws SQLException
+     */
     @Override
     public int deleteUndoLogByLogCreated(Date logCreated, int limitRows, Connection conn) throws SQLException {
         PreparedStatement deletePST = null;

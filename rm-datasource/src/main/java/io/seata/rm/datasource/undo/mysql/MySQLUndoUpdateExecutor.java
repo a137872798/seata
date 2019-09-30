@@ -42,7 +42,7 @@ public class MySQLUndoUpdateExecutor extends AbstractUndoExecutor {
 
     /**
      * Undo Update.
-     *
+     * 针对 更新语句
      * @return sql
      */
     @Override

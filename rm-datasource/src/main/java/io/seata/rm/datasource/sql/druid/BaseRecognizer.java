@@ -26,7 +26,7 @@ import java.util.List;
 
 /**
  * The type Base recognizer.
- *
+ * 基础的解析器对象
  * @author sharajava
  */
 public abstract class BaseRecognizer implements SQLRecognizer {
@@ -44,6 +44,7 @@ public abstract class BaseRecognizer implements SQLRecognizer {
 
     /**
      * The Original sql.
+     * 原始的 sql 语句
      */
     protected String originalSQL;
 
@@ -62,6 +63,13 @@ public abstract class BaseRecognizer implements SQLRecognizer {
         return originalSQL;
     }
 
+    /**
+     * 创建观察者对象
+     * @param parametersHolder   携带参数的对象
+     * @param paramAppenderList
+     * @param sb
+     * @return
+     */
     public MySqlOutputVisitor createMySqlOutputVisitor(final ParametersHolder parametersHolder, final ArrayList<List<Object>> paramAppenderList, final StringBuilder sb) {
         MySqlOutputVisitor visitor = new MySqlOutputVisitor(sb) {
 

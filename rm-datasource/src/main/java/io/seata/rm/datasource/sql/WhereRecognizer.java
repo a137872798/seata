@@ -22,14 +22,14 @@ import io.seata.rm.datasource.ParametersHolder;
 
 /**
  * The interface Where recognizer.
- *
+ * 具备解析出 where 条件的解析器
  * @author sharajava
  */
 public interface WhereRecognizer extends SQLRecognizer {
 
     /**
      * Gets where condition.
-     *
+     * 获取where 条件
      * @param parametersHolder the parameters holder
      * @param paramAppenderList    the param appender list
      * @return the where condition

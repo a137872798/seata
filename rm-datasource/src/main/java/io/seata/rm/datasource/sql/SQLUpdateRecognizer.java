@@ -19,7 +19,7 @@ import java.util.List;
 
 /**
  * The interface Sql update recognizer.
- *
+ * 解析update 字段 和值
  * @author sharajava
  */
 public interface SQLUpdateRecognizer extends WhereRecognizer {

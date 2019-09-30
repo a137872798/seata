@@ -19,7 +19,7 @@ import java.util.List;
 
 /**
  * The interface Sql insert recognizer.
- *
+ * 具备解析出 insert 参数和 字段的解析器
  * @author sharajava
  */
 public interface SQLInsertRecognizer extends SQLRecognizer {
