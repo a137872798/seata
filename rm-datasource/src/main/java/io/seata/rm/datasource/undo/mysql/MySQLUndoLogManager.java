@@ -122,9 +122,9 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
     /**
      * Undo.
      *
-     * @param dataSourceProxy the data source proxy
-     * @param xid             the xid
-     * @param branchId        the branch id
+     * @param dataSourceProxy the data source proxy   数据源代理对象
+     * @param xid             the xid                 事务id
+     * @param branchId        the branch id           总事务中分支id
      * @throws TransactionException the transaction exception
      */
     @Override
@@ -141,11 +141,13 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
                 conn = dataSourceProxy.getPlainConnection();
 
                 // The entire undo process should run in a local transaction.
+                // 撤销动作应该在一个本地事务中 所以关闭了 autoCommit
                 if (originalAutoCommit = conn.getAutoCommit()) {
                     conn.setAutoCommit(false);
                 }
 
                 // Find UNDO LOG
+                // 寻找撤销日志
                 selectPST = conn.prepareStatement(SELECT_UNDO_LOG_SQL);
                 selectPST.setLong(1, branchId);
                 selectPST.setString(2, xid);
@@ -158,7 +160,9 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
                     // It is possible that the server repeatedly sends a rollback request to roll back
                     // the same branch transaction to multiple processes,
                     // ensuring that only the undo_log in the normal state is processed.
+                    // 获取 log_status属性
                     int state = rs.getInt(ClientTableColumnsName.UNDO_LOG_LOG_STATUS);
+                    // 判断是否支持撤销 如果不支持撤销 不做处理  (就是必须status 为normal)
                     if (!canUndo(state)) {
                         if (LOGGER.isInfoEnabled()) {
                             LOGGER.info("xid {} branch {}, ignore {} undo_log",
@@ -167,29 +171,37 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
                         return;
                     }
 
+                    // 获取context 数据
                     String contextString = rs.getString(ClientTableColumnsName.UNDO_LOG_CONTEXT);
+                    // 解析 重新变为一个map<String, String> 对象
                     Map<String, String> context = parseContext(contextString);
+                    // 获取回滚信息
                     Blob b = rs.getBlob(ClientTableColumnsName.UNDO_LOG_ROLLBACK_INFO);
                     byte[] rollbackInfo = BlobUtils.blob2Bytes(b);
 
                     String serializer = context == null ? null : context.get(UndoLogConstants.SERIALIZER_KEY);
                     UndoLogParser parser = serializer == null ? UndoLogParserFactory.getInstance() :
                             UndoLogParserFactory.getInstance(serializer);
+                    // 解析反序列化成 log 对象
                     BranchUndoLog branchUndoLog = parser.decode(rollbackInfo);
 
                     try {
                         // put serializer name to local
+                        // 为本线程设置 解析器
                         setCurrentSerializer(parser.getName());
                         List<SQLUndoLog> sqlUndoLogs = branchUndoLog.getSqlUndoLogs();
                         if (sqlUndoLogs.size() > 1) {
+                            // 反转语句
                             Collections.reverse(sqlUndoLogs);
                         }
                         for (SQLUndoLog sqlUndoLog : sqlUndoLogs) {
+                            // 使用 dataSource + tableName 可以找到唯一一个匹配的 tableMeta 对象
                             TableMeta tableMeta = TableMetaCache.getTableMeta(dataSourceProxy, sqlUndoLog.getTableName());
                             sqlUndoLog.setTableMeta(tableMeta);
                             AbstractUndoExecutor undoExecutor = UndoExecutorFactory.getUndoExecutor(
                                     dataSourceProxy.getDbType(),
                                     sqlUndoLog);
+                            // 使用执行器 执行指定任务
                             undoExecutor.executeOn(conn);
                         }
                     } finally {
@@ -287,7 +299,15 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
     }
 
 
-
+    /**
+     * 插入撤销日志
+     * @param xid
+     * @param branchID
+     * @param rollbackCtx
+     * @param undoLogContent
+     * @param conn
+     * @throws SQLException
+     */
     private static void insertUndoLogWithNormal(String xid, long branchID, String rollbackCtx,
                                                 byte[] undoLogContent, Connection conn) throws SQLException {
         insertUndoLog(xid, branchID, rollbackCtx, undoLogContent, State.Normal, conn);
@@ -299,6 +319,16 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
                 parser.getDefaultContent(), State.GlobalFinished, conn);
     }
 
+    /**
+     * 插入撤销日志
+     * @param xid
+     * @param branchID
+     * @param rollbackCtx
+     * @param undoLogContent
+     * @param state
+     * @param conn
+     * @throws SQLException
+     */
     private static void insertUndoLog(String xid, long branchID, String rollbackCtx,
                                       byte[] undoLogContent, State state, Connection conn) throws SQLException {
         PreparedStatement pst = null;

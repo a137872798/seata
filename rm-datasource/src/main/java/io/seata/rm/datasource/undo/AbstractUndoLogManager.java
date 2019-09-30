@@ -81,7 +81,7 @@ public abstract class AbstractUndoLogManager implements UndoLogManager {
     protected static final String DELETE_UNDO_LOG_SQL = "DELETE FROM " + UNDO_LOG_TABLE_NAME +
             " WHERE " + ClientTableColumnsName.UNDO_LOG_BRANCH_XID + " = ? AND " + ClientTableColumnsName.UNDO_LOG_XID + " = ?";
 
-    // 有管线程绑定的某个变量
+    // 有管线程绑定的parserName
     private static final ThreadLocal<String> SERIALIZER_LOCAL = new ThreadLocal<>();
 
     public static String getCurrentSerializer() {

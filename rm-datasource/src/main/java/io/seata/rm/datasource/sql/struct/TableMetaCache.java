@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Table meta cache.
- *
+ * 关于 表的元数据缓存
  * @author sharajava
  */
 public class TableMetaCache {
@@ -58,7 +58,7 @@ public class TableMetaCache {
 
     /**
      * Gets table meta.
-     *
+     * 获取表的元数据对象
      * @param dataSourceProxy the data source proxy
      * @param tableName       the table name
      * @return the table meta
@@ -69,9 +69,12 @@ public class TableMetaCache {
         }
 
         TableMeta tmeta;
+        // 生成缓存键
         final String key = getCacheKey(dataSourceProxy, tableName);
+        // 从缓存中获取 如果不存在则调用函数
         tmeta = TABLE_META_CACHE.get(key, mappingFunction -> {
             try {
+                // 拉取表的源数据信息
                 return fetchSchema(dataSourceProxy.getTargetDataSource(), tableName);
             } catch (SQLException e) {
                 LOGGER.error("get cache error:{}", e.getMessage(), e);
@@ -117,6 +120,13 @@ public class TableMetaCache {
         }
     }
 
+    /**
+     * 拉取元数据信息
+     * @param dataSource
+     * @param tableName
+     * @return
+     * @throws SQLException
+     */
     private static TableMeta fetchSchema(DataSource dataSource, String tableName) throws SQLException {
         return fetchSchemeInDefaultWay(dataSource, tableName);
     }
