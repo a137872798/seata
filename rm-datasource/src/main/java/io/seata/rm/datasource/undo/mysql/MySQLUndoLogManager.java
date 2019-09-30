@@ -53,6 +53,7 @@ import org.slf4j.LoggerFactory;
 import static io.seata.core.exception.TransactionExceptionCode.BranchRollbackFailed_Retriable;
 
 /**
+ * 撤销日志管理器
  * @author jsbxyyx
  * @date 2019/09/07
  */
@@ -62,6 +63,7 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
 
     /**
      * branch_id, xid, context, rollback_info, log_status, log_created, log_modified
+     * 插入语句的模板
      */
     private static final String INSERT_UNDO_LOG_SQL = "INSERT INTO " + UNDO_LOG_TABLE_NAME +
             " (" + ClientTableColumnsName.UNDO_LOG_BRANCH_XID + ", " + ClientTableColumnsName.UNDO_LOG_XID + ", "
@@ -70,6 +72,9 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
             + ClientTableColumnsName.UNDO_LOG_LOG_MODIFIED + ")" +
             " VALUES (?, ?, ?, ?, ?, now(), now())";
 
+    /**
+     * 删除语句模板
+     */
     private static final String DELETE_UNDO_LOG_BY_CREATE_SQL = "DELETE FROM " + UNDO_LOG_TABLE_NAME +
             " WHERE log_created <= ? LIMIT ?";
 
@@ -88,15 +93,20 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
     public void flushUndoLogs(ConnectionProxy cp) throws SQLException {
         assertDbSupport(cp.getDbType());
 
+        // 获取连接上下文
         ConnectionContext connectionContext = cp.getContext();
+        // 获取 事务id 和 分支id
         String xid = connectionContext.getXid();
         long branchID = connectionContext.getBranchId();
 
+        // 创建分事务 日志对象
         BranchUndoLog branchUndoLog = new BranchUndoLog();
         branchUndoLog.setXid(xid);
         branchUndoLog.setBranchId(branchID);
+        // 设置一组需要撤销的日志对象
         branchUndoLog.setSqlUndoLogs(connectionContext.getUndoItems());
 
+        // 对日志对象进行编码
         UndoLogParser parser = UndoLogParserFactory.getInstance();
         byte[] undoLogContent = parser.encode(branchUndoLog);
 
@@ -104,6 +114,7 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
             LOGGER.debug("Flushing UNDO LOG: {}", new String(undoLogContent, Constants.DEFAULT_CHARSET));
         }
 
+        // 插入 日志对象
         insertUndoLogWithNormal(xid, branchID, buildContext(parser.getName()), undoLogContent,
                 cp.getTargetConnection());
     }

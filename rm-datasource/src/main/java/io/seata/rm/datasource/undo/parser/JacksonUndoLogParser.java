@@ -49,7 +49,7 @@ import javax.sql.rowset.serial.SerialException;
 
 /**
  * The type Json based undo log parser.
- *
+ * 基于jack的 编解码器
  * @author jsbxyyx
  */
 @LoadLevel(name = JacksonUndoLogParser.NAME)

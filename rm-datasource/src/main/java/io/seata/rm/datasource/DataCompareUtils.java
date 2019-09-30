@@ -100,7 +100,7 @@ public class DataCompareUtils {
 
     /**
      * Is image equals.
-     *
+     * 判断是否相同
      * @param beforeImage the before image
      * @param afterImage  the after image
      * @return Result<Boolean>
@@ -109,6 +109,7 @@ public class DataCompareUtils {
         if (beforeImage == null) {
             return Result.build(afterImage == null, null);
         } else {
+            // 如果 before == null 而after != null
             if (afterImage == null) {
                 return Result.build(false, null);
             }

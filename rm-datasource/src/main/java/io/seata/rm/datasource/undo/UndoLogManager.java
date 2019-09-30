@@ -26,7 +26,7 @@ import java.util.Set;
 
 /**
  * The type Undo log manager.
- *
+ * 撤销日志管理器 包含操作 撤销日志的相关api
  * @author sharajava
  * @author Geng Zhang
  */
@@ -34,6 +34,7 @@ public interface UndoLogManager {
 
     /**
      * Flush undo logs.
+     * 执行当前维护的 撤销日志
      * @param cp the cp
      * @throws SQLException the sql exception
      */
@@ -41,7 +42,7 @@ public interface UndoLogManager {
 
     /**
      * Undo.
-     *
+     * 生成撤销日志
      * @param dataSourceProxy the data source proxy
      * @param xid             the xid
      * @param branchId        the branch id
@@ -51,7 +52,7 @@ public interface UndoLogManager {
 
     /**
      * Delete undo log.
-     *
+     * 删除撤销日志
      * @param xid      the xid
      * @param branchId the branch id
      * @param conn     the conn
@@ -61,7 +62,7 @@ public interface UndoLogManager {
 
     /**
      * batch Delete undo log.
-     *
+     * 批量删除撤销日志
      * @param xids the xid set collections
      * @param branchIds the branch id set collections
      * @param conn the connection
@@ -71,6 +72,7 @@ public interface UndoLogManager {
 
     /**
      * delete undolog by created
+     * 通过指定创建时间  限制数量 来删除 日志文件
      * @param logCreated the created time
      * @param limitRows the limit rows
      * @param conn the connection

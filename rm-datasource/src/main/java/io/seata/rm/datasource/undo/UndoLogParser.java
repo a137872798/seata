@@ -17,7 +17,7 @@ package io.seata.rm.datasource.undo;
 
 /**
  * The interface Undo log parser.
- *
+ * 撤销日志解析器
  * @author sharajava
  * @author Geng Zhang
  */
@@ -25,17 +25,19 @@ public interface UndoLogParser {
 
     /**
      * Get the name of parser;
-     * 
+     * 获取解析名
      * @return the name of parser
      */
     String getName();
 
     /**
      * Get default context of this parser
-     * 
+     * 获取默认内容
      * @return the default content if undo log is empty
      */
     byte[] getDefaultContent();
+
+    // 编解码
 
     /**
      * Encode branch undo log to byte array.

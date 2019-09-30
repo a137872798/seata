@@ -22,13 +22,14 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * The type Undo log parser factory.
- *
+ * 撤销日志的编解码工厂   这里的编解码实际上就是序列化
  * @author sharajava
  * @author Geng Zhang
  */
 public class UndoLogParserFactory {
 
     /**
+     * 数据库与 对应的 解析器
      * {serializerName:UndoLogParser}
      */
     private static final ConcurrentMap<String, UndoLogParser> INSTANCES = new ConcurrentHashMap<>();

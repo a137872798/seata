@@ -166,14 +166,16 @@ public class TableRecords {
 
     /**
      * Build records table records.
-     *
+     * 构建表记录
      * @param tmeta     the tmeta
      * @param resultSet the result set
      * @return the table records
      * @throws SQLException the sql exception
      */
     public static TableRecords buildRecords(TableMeta tmeta, ResultSet resultSet) throws SQLException {
+        // 生成表记录
         TableRecords records = new TableRecords(tmeta);
+        // 获取结果集元数据
         ResultSetMetaData resultSetMetaData = resultSet.getMetaData();
         int columnCount = resultSetMetaData.getColumnCount();
 

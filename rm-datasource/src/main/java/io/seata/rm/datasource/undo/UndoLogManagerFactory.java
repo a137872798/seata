@@ -24,11 +24,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
+ * 撤销日志的 管理工厂
  * @author jsbxyyx
  * @date 2019/09/07
  */
 public final class UndoLogManagerFactory {
 
+    /**
+     * 每种数据库对应一个 撤销日志管理器  前提是该db 支持撤销日志
+     */
     private static final Map<String, UndoLogManager> UNDO_LOG_MANAGER_MAP = new HashMap<>();
 
     static {

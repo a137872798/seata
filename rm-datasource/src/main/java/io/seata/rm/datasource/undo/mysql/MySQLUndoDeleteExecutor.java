@@ -31,7 +31,7 @@ import io.seata.rm.datasource.undo.SQLUndoLog;
 
 /**
  * The type My sql undo delete executor.
- *
+ * 删除撤销语句
  * @author sharajava
  */
 public class MySQLUndoDeleteExecutor extends AbstractUndoExecutor {
@@ -60,7 +60,9 @@ public class MySQLUndoDeleteExecutor extends AbstractUndoExecutor {
      */
     @Override
     protected String buildUndoSQL() {
+        // 获取校验器对象
         KeywordChecker keywordChecker = KeywordCheckerFactory.getKeywordChecker(JdbcConstants.MYSQL);
+        // 获取快照
         TableRecords beforeImage = sqlUndoLog.getBeforeImage();
         List<Row> beforeImageRows = beforeImage.getRows();
         if (beforeImageRows == null || beforeImageRows.size() == 0) {
@@ -70,8 +72,10 @@ public class MySQLUndoDeleteExecutor extends AbstractUndoExecutor {
         List<Field> fields = new ArrayList<>(row.nonPrimaryKeys());
         Field pkField = row.primaryKeys().get(0);
         // PK is at last one.
+        // 将 pk 放到末尾
         fields.add(pkField);
 
+        // 将col 拼接起来
         String insertColumns = fields.stream()
             .map(field -> keywordChecker.checkAndReplace(field.getName()))
             .collect(Collectors.joining(", "));

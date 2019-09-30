@@ -95,7 +95,7 @@ public class TableMetaCache {
 
     /**
      * Clear the table meta cache
-     *
+     * 定期更新缓存    相当于每隔一段时间 就去数据库中拉取本table 的元数据信息
      * @param dataSourceProxy
      */
     public static void refresh(final DataSourceProxy dataSourceProxy) {
@@ -104,6 +104,7 @@ public class TableMetaCache {
             String key = getCacheKey(dataSourceProxy, entry.getValue().getTableName());
             if (entry.getKey().equals(key)) {
                 try {
+                    // 获取TableMeta 对象
                     TableMeta tableMeta = fetchSchema(dataSourceProxy, entry.getValue().getTableName());
                     if (!tableMeta.equals(entry.getValue())) {
                         TABLE_META_CACHE.put(entry.getKey(), tableMeta);
@@ -120,6 +121,13 @@ public class TableMetaCache {
         return fetchSchemeInDefaultWay(dataSource, tableName);
     }
 
+    /**
+     * 使用 dataSource 和 tableName 获取 table元数据
+     * @param dataSource
+     * @param tableName
+     * @return
+     * @throws SQLException
+     */
     private static TableMeta fetchSchemeInDefaultWay(DataSource dataSource, String tableName) throws SQLException {
         Connection conn = null;
         Statement stmt = null;
@@ -134,6 +142,7 @@ public class TableMetaCache {
             ResultSetMetaData rsmd = rs.getMetaData();
             DatabaseMetaData dbmd = conn.getMetaData();
 
+            // 通过JDBC原生的 元数转换成 TableMeta
             return resultSetMetaToSchema(rsmd, dbmd, tableName);
         } catch (Exception e) {
             if (e instanceof SQLException) {
@@ -215,6 +224,14 @@ public class TableMetaCache {
         return tm;
     }
 
+    /**
+     * 将JDBC原生 meta转换成 tableMeta
+     * @param rsmd
+     * @param dbmd
+     * @param tableName
+     * @return
+     * @throws SQLException
+     */
     private static TableMeta resultSetMetaToSchema(ResultSetMetaData rsmd, DatabaseMetaData dbmd, String tableName)
         throws SQLException {
         String schemaName = rsmd.getSchemaName(1);
@@ -297,6 +314,7 @@ public class TableMetaCache {
 
     /**
      * generate cache key
+     * 生成缓存键
      *
      * @param dataSourceProxy
      * @param tableName

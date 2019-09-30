@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
+ * 撤销日志管理器
  * @author jsbxyyx
  * @date 2019/09/07
  */
@@ -40,11 +41,14 @@ public abstract class AbstractUndoLogManager implements UndoLogManager {
     protected enum State {
         /**
          * This state can be properly rolled back by services
+         * 代表可以在当前服务级别进行回滚
          */
         Normal(0),
         /**
          * This state prevents the branch transaction from inserting undo_log after the global transaction is rolled
          * back.
+         * 当前当前正处在一个 全局事务中
+         * 该标识怎么使用???
          */
         GlobalFinished(1);
 
@@ -59,15 +63,25 @@ public abstract class AbstractUndoLogManager implements UndoLogManager {
         }
     }
 
+    /**
+     * 撤销日志所在的表
+     */
     protected static final String UNDO_LOG_TABLE_NAME = ConfigurationFactory.getInstance()
             .getConfig(ConfigurationKeys.TRANSACTION_UNDO_LOG_TABLE, ConfigurationKeys.TRANSACTION_UNDO_LOG_DEFAULT_TABLE);
 
+    /**
+     * 查询撤销日志的语句
+     */
     protected static final String SELECT_UNDO_LOG_SQL = "SELECT * FROM " + UNDO_LOG_TABLE_NAME +
             " WHERE " + ClientTableColumnsName.UNDO_LOG_BRANCH_XID + " = ? AND " + ClientTableColumnsName.UNDO_LOG_XID + " = ? FOR UPDATE";
 
+    /**
+     * 删除撤销日志的语句
+     */
     protected static final String DELETE_UNDO_LOG_SQL = "DELETE FROM " + UNDO_LOG_TABLE_NAME +
             " WHERE " + ClientTableColumnsName.UNDO_LOG_BRANCH_XID + " = ? AND " + ClientTableColumnsName.UNDO_LOG_XID + " = ?";
 
+    // 有管线程绑定的某个变量
     private static final ThreadLocal<String> SERIALIZER_LOCAL = new ThreadLocal<>();
 
     public static String getCurrentSerializer() {
@@ -90,7 +104,7 @@ public abstract class AbstractUndoLogManager implements UndoLogManager {
 
     /**
      * Delete undo log.
-     *
+     * 实现了删除撤销日志的语句
      * @param xid      the xid
      * @param branchId the branch id
      * @param conn     the conn
@@ -100,6 +114,7 @@ public abstract class AbstractUndoLogManager implements UndoLogManager {
     public void deleteUndoLog(String xid, long branchId, Connection conn) throws SQLException {
         PreparedStatement deletePST = null;
         try {
+            // 使用维护的 delete 语句直接构建 Statement对象
             deletePST = conn.prepareStatement(DELETE_UNDO_LOG_SQL);
             deletePST.setLong(1, branchId);
             deletePST.setString(2, xid);
@@ -118,7 +133,7 @@ public abstract class AbstractUndoLogManager implements UndoLogManager {
 
     /**
      * batch Delete undo log.
-     *
+     * 批量删除
      * @param xids
      * @param branchIds
      * @param conn
@@ -130,11 +145,13 @@ public abstract class AbstractUndoLogManager implements UndoLogManager {
         }
         int xidSize = xids.size();
         int branchIdSize = branchIds.size();
+        // 构建批量删除的语句
         String batchDeleteSql = toBatchDeleteUndoLogSql(xidSize, branchIdSize);
         PreparedStatement deletePST = null;
         try {
             deletePST = conn.prepareStatement(batchDeleteSql);
             int paramsIndex = 1;
+            // 设置参数信息
             for (Long branchId : branchIds) {
                 deletePST.setLong(paramsIndex++,branchId);
             }
@@ -158,6 +175,12 @@ public abstract class AbstractUndoLogManager implements UndoLogManager {
 
     }
 
+    /**
+     * 创建批量删除sql 的语句
+     * @param xidSize
+     * @param branchIdSize
+     * @return
+     */
     protected static String toBatchDeleteUndoLogSql(int xidSize, int branchIdSize) {
         StringBuilder sqlBuilder = new StringBuilder(64);
         sqlBuilder.append("DELETE FROM ")
@@ -180,6 +203,11 @@ public abstract class AbstractUndoLogManager implements UndoLogManager {
         sqlBuilder.append(") ");
     }
 
+    /**
+     * 只有普通语句才能撤销
+     * @param state
+     * @return
+     */
     protected static boolean canUndo(int state) {
         return state == State.Normal.getValue();
     }

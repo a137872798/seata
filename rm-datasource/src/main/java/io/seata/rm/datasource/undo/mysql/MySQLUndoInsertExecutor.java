@@ -32,7 +32,8 @@ import io.seata.rm.datasource.undo.SQLUndoLog;
 
 /**
  * The type My sql undo insert executor.
- *
+ * mysql 中针对 增加撤销日志的 执行器
+ * 为什么 insert 使用的是 delete...
  * @author sharajava
  */
 public class MySQLUndoInsertExecutor extends AbstractUndoExecutor {
@@ -44,12 +45,13 @@ public class MySQLUndoInsertExecutor extends AbstractUndoExecutor {
 
     /**
      * Undo Inset.
-     *
+     * 构建语句模板
      * @return sql
      */
     @Override
     protected String buildUndoSQL() {
         KeywordChecker keywordChecker = KeywordCheckerFactory.getKeywordChecker(JdbcConstants.MYSQL);
+        // 这里获取的是后置的 快照
         TableRecords afterImage = sqlUndoLog.getAfterImage();
         List<Row> afterImageRows = afterImage.getRows();
         if (afterImageRows == null || afterImageRows.size() == 0) {
@@ -62,6 +64,13 @@ public class MySQLUndoInsertExecutor extends AbstractUndoExecutor {
                              keywordChecker.checkAndReplace(pkField.getName()));
     }
 
+    /**
+     * 设置主键值
+     * @param undoPST    the undo pst
+     * @param undoValues the undo values
+     * @param pkValue    the pk value
+     * @throws SQLException
+     */
     @Override
     protected void undoPrepare(PreparedStatement undoPST, ArrayList<Field> undoValues, Field pkValue)
         throws SQLException {
@@ -77,6 +86,10 @@ public class MySQLUndoInsertExecutor extends AbstractUndoExecutor {
         super(sqlUndoLog);
     }
 
+    /**
+     * 获取后置快照
+     * @return
+     */
     @Override
     protected TableRecords getUndoRows() {
         return sqlUndoLog.getAfterImage();

@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Data source proxy.
- *
+ * 数据源代理对象
  * @author sharajava
  */
 public class DataSourceProxy extends AbstractDataSourceProxy implements Resource {
@@ -59,11 +59,14 @@ public class DataSourceProxy extends AbstractDataSourceProxy implements Resource
      */
     private static final long TABLE_META_CHECKER_INTERVAL = 60000L;
 
-    private final ScheduledExecutorService tableMetaExcutor = new ScheduledThreadPoolExecutor(1, new NamedThreadFactory("tableMetaChecker", 1, true));
+    /**
+     * 内部包含一个线程池
+     */
+    private final ScheduledExecutorService tableMetaExecutor = new ScheduledThreadPoolExecutor(1, new NamedThreadFactory("tableMetaChecker", 1, true));
 
     /**
      * Instantiates a new Data source proxy.
-     *
+     * 默认清空下使用同一个事务id
      * @param targetDataSource the target data source
      */
     public DataSourceProxy(DataSource targetDataSource) {
@@ -78,6 +81,7 @@ public class DataSourceProxy extends AbstractDataSourceProxy implements Resource
      */
     public DataSourceProxy(DataSource targetDataSource, String resourceGroupId) {
         super(targetDataSource);
+        // 进行初始化
         init(targetDataSource, resourceGroupId);
     }
 
@@ -89,9 +93,11 @@ public class DataSourceProxy extends AbstractDataSourceProxy implements Resource
         } catch (SQLException e) {
             throw new IllegalStateException("can not init dataSource", e);
         }
+        // 将自身信息注册到 RM 上
         DefaultResourceManager.get().registerResource(this);
+        // 如果开启了 tableMeta 检查
         if(ENABLE_TABLE_META_CHECKER_ENABLE){
-            tableMetaExcutor.scheduleAtFixedRate(new Runnable() {
+            tableMetaExecutor.scheduleAtFixedRate(new Runnable() {
                 @Override
                 public void run() {
                     TableMetaCache.refresh(DataSourceProxy.this);

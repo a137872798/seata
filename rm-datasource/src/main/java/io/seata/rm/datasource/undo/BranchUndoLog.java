@@ -19,7 +19,7 @@ import java.util.List;
 
 /**
  * The type Branch undo log.
- *
+ * 针对 分布式事务 下 小事务的对象
  * @author sharajava
  */
 public class BranchUndoLog {

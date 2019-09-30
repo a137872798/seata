@@ -17,14 +17,14 @@ package io.seata.rm.datasource.undo;
 
 /**
  * The interface Keyword checker.
- *
+ * keyword 校验器
  * @author Wu
  * @date 2019 /3/5 The interface Keyword checker
  */
 public interface KeywordChecker {
     /**
      * check whether given field name and table name use keywords
-     *
+     * 判断给定的 字段名 或者表明是否使用了 keyword
      * @param fieldOrTableName the field or table name
      * @return boolean
      */
@@ -32,7 +32,7 @@ public interface KeywordChecker {
 
     /**
      * check whether given field name and table name use keywords and,if so,will add "`" to the name.
-     *
+     * 判断是否使用关键字 如果用了 使用`` 包裹
      * @param fieldOrTableName the field or table name
      * @return string
      */

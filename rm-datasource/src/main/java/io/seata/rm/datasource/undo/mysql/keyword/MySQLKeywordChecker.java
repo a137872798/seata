@@ -23,12 +23,15 @@ import java.util.stream.Collectors;
 
 /**
  * The type MySQL keyword checker.
- *
+ * 针对mysql 的 关键字校验器
  * @author xingfudeshi@gmail.com
  * @date 2019/3/5 MySQL keyword checker
  */
 public class MySQLKeywordChecker implements KeywordChecker {
     private static volatile KeywordChecker keywordChecker = null;
+    /**
+     * 关键字校验集合
+     */
     private Set<String> keywordSet;
 
     private MySQLKeywordChecker() {
@@ -53,6 +56,7 @@ public class MySQLKeywordChecker implements KeywordChecker {
 
     /**
      * MySQL keyword
+     * 代表 mysql 的所有关键字
      */
     private enum MySQLKeyword {
         /**

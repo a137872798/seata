@@ -27,6 +27,7 @@ import io.seata.rm.datasource.undo.oracle.OracleUndoUpdateExecutor;
 
 /**
  * The type Undo executor factory.
+ * 撤销执行工厂
  *
  * @author sharajava
  */
@@ -34,16 +35,19 @@ public class UndoExecutorFactory {
 
     /**
      * Gets undo executor.
+     * 获取撤销执行器
      *
      * @param dbType     the db type
      * @param sqlUndoLog the sql undo log
      * @return the undo executor
      */
     public static AbstractUndoExecutor getUndoExecutor(String dbType, SQLUndoLog sqlUndoLog) {
-        if (!dbType.equalsIgnoreCase(JdbcConstants.MYSQL)&&!dbType.equalsIgnoreCase(JdbcConstants.ORACLE)) {
+        // 代表只能处理 MYSQL 和 ORACLE
+        if (!dbType.equalsIgnoreCase(JdbcConstants.MYSQL) && !dbType.equalsIgnoreCase(JdbcConstants.ORACLE)) {
             throw new NotSupportYetException(dbType);
         }
-          if(dbType.equalsIgnoreCase(JdbcConstants.ORACLE)) {
+        // 如果是 oracle 类型的
+        if (dbType.equalsIgnoreCase(JdbcConstants.ORACLE)) {
             switch (sqlUndoLog.getSqlType()) {
                 case INSERT:
                     return new OracleUndoInsertExecutor(sqlUndoLog);
@@ -55,16 +59,17 @@ public class UndoExecutorFactory {
                     throw new ShouldNeverHappenException();
             }
         } else {
-              switch (sqlUndoLog.getSqlType()) {
-                  case INSERT:
-                      return new MySQLUndoInsertExecutor(sqlUndoLog);
-                  case UPDATE:
-                      return new MySQLUndoUpdateExecutor(sqlUndoLog);
-                  case DELETE:
-                      return new MySQLUndoDeleteExecutor(sqlUndoLog);
-                  default:
-                      throw new ShouldNeverHappenException();
-              }
-          }
+            switch (sqlUndoLog.getSqlType()) {
+                // 根据sql类型返回不同的执行器
+                case INSERT:
+                    return new MySQLUndoInsertExecutor(sqlUndoLog);
+                case UPDATE:
+                    return new MySQLUndoUpdateExecutor(sqlUndoLog);
+                case DELETE:
+                    return new MySQLUndoDeleteExecutor(sqlUndoLog);
+                default:
+                    throw new ShouldNeverHappenException();
+            }
+        }
     }
 }

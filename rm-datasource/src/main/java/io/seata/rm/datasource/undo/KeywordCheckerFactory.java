@@ -22,7 +22,7 @@ import io.seata.rm.datasource.undo.oracle.keyword.OracleKeywordChecker;
 
 /**
  * The type Keyword checker factory.
- *
+ * 生成关键字校验器工厂
  * @author Wu
  * @date 2019 /3/5 The Type keyword checker factory
  */
