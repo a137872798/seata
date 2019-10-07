@@ -47,6 +47,7 @@ public class SQLVisitorFactory {
      * @return the sql recognizer
      */
     public static SQLRecognizer get(String sql, String dbType) {
+        // 生成 statement 对象 (从druid 中获取)
         List<SQLStatement> asts = SQLUtils.parseStatements(sql, dbType);
         if (asts == null || asts.size() != 1) {
             throw new UnsupportedOperationException("Unsupported SQL: " + sql);

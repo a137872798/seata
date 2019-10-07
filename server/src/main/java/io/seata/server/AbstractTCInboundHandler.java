@@ -39,17 +39,26 @@ import io.seata.server.session.SessionHolder;
 
 /**
  * The type Abstract tc inbound handler.
- *
+ * TC 的输入处理器骨架类
  * @author sharajava
  */
 public abstract class AbstractTCInboundHandler extends AbstractExceptionHandler implements TCInboundHandler {
 
+    /**
+     * 处理开启全局事务的请求
+     * @param request
+     * @param rpcContext  the rpc context
+     * @return
+     */
     @Override
     public GlobalBeginResponse handle(GlobalBeginRequest request, final RpcContext rpcContext) {
+        // 生成一个响应结果
         GlobalBeginResponse response = new GlobalBeginResponse();
+        // 执行处理模板开启全局事务
         exceptionHandleTemplate(new AbstractCallback<GlobalBeginRequest, GlobalBeginResponse>() {
             @Override
             public void execute(GlobalBeginRequest request, GlobalBeginResponse response) throws TransactionException {
+                // 对应回调对象的执行逻辑
                 doGlobalBegin(request, response, rpcContext);
             }
         }, request, response);
@@ -58,7 +67,7 @@ public abstract class AbstractTCInboundHandler extends AbstractExceptionHandler 
 
     /**
      * Do global begin.
-     *
+     * 由子类实现
      * @param request    the request
      * @param response   the response
      * @param rpcContext the rpc context
@@ -67,6 +76,12 @@ public abstract class AbstractTCInboundHandler extends AbstractExceptionHandler 
     protected abstract void doGlobalBegin(GlobalBeginRequest request, GlobalBeginResponse response,
         RpcContext rpcContext) throws TransactionException;
 
+    /**
+     * 处理全局提交逻辑
+     * @param request
+     * @param rpcContext   the rpc context
+     * @return
+     */
     @Override
     public GlobalCommitResponse handle(GlobalCommitRequest request, final RpcContext rpcContext) {
         GlobalCommitResponse response = new GlobalCommitResponse();
@@ -91,20 +106,35 @@ public abstract class AbstractTCInboundHandler extends AbstractExceptionHandler 
     protected abstract void doGlobalCommit(GlobalCommitRequest request, GlobalCommitResponse response,
         RpcContext rpcContext) throws TransactionException;
 
+    /**
+     * 回滚全局事务
+     * @param request
+     * @param rpcContext     the rpc context
+     * @return
+     */
     @Override
     public GlobalRollbackResponse handle(GlobalRollbackRequest request, final RpcContext rpcContext) {
         GlobalRollbackResponse response = new GlobalRollbackResponse();
         exceptionHandleTemplate(new AbstractCallback<GlobalRollbackRequest, GlobalRollbackResponse>() {
+            // 执行的逻辑就是 全局回滚
             @Override
             public void execute(GlobalRollbackRequest request, GlobalRollbackResponse response)
                 throws TransactionException {
                 doGlobalRollback(request, response, rpcContext);
             }
 
+            /**
+             * 当触发事务相关的异常时
+             * @param request
+             * @param response
+             * @param tex
+             */
             @Override
             public void onTransactionException(GlobalRollbackRequest request, GlobalRollbackResponse response,
                 TransactionException tex) {
+                // 这里是为响应对象设置code
                 super.onTransactionException(request, response, tex);
+                // 根据事务id 获取 全局session
                 GlobalSession globalSession = SessionHolder.findGlobalSession(request.getXid());
                 if (globalSession != null) {
                     response.setGlobalStatus(globalSession.getStatus());

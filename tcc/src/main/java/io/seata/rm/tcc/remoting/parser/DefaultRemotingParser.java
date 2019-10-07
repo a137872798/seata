@@ -82,13 +82,14 @@ public class DefaultRemotingParser {
 
     /**
      * is remoting bean ?
-     *
+     * 可以通过 beanName 判断是否是 rpc bean
      * @param bean     the bean
      * @param beanName the bean name
      * @return boolean boolean
      */
     public boolean isRemoting(Object bean, String beanName) {
         for (RemotingParser remotingParser : allRemotingParsers) {
+            // 解析
             if (remotingParser.isRemoting(bean, beanName)) {
                 return true;
             }

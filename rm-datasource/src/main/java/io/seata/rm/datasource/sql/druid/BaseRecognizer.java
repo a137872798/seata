@@ -26,7 +26,7 @@ import java.util.List;
 
 /**
  * The type Base recognizer.
- *
+ * 解析器基类对象
  * @author sharajava
  */
 public abstract class BaseRecognizer implements SQLRecognizer {
@@ -44,6 +44,7 @@ public abstract class BaseRecognizer implements SQLRecognizer {
 
     /**
      * The Original sql.
+     * 原始的sql 语句
      */
     protected String originalSQL;
 
@@ -62,16 +63,29 @@ public abstract class BaseRecognizer implements SQLRecognizer {
         return originalSQL;
     }
 
+    /**
+     * 创建一个观察者对象
+     * @param parametersHolder   携带参数的对象
+     * @param paramAppenderList   参数列表
+     * @param sb    应该是用于打印的
+     * @return
+     */
     public MySqlOutputVisitor createMySqlOutputVisitor(final ParametersHolder parametersHolder, final ArrayList<List<Object>> paramAppenderList, final StringBuilder sb) {
+        // 创建抽象对象
         MySqlOutputVisitor visitor = new MySqlOutputVisitor(sb) {
 
+            // 将 druid 中某个类 作为参数 定制的 visit 方法
             @Override
             public boolean visit(SQLVariantRefExpr x) {
+                // 如果表达式 为 ?
                 if ("?".equals(x.getName())) {
+                    // 从参数中找到对应的值
                     ArrayList<Object> oneParamValues = parametersHolder.getParameters()[x.getIndex()];
+                    // 如果 appendList 还没有初始化 每发现一个 param 就往 appendList 中添加数组
                     if (paramAppenderList.size() == 0) {
                         oneParamValues.stream().forEach(t -> paramAppenderList.add(new ArrayList<>()));
                     }
+                    // 这里将参数设置进去
                     for (int i = 0; i < oneParamValues.size(); i++) {
                         paramAppenderList.get(i).add(oneParamValues.get(i));
                     }

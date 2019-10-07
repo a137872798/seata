@@ -28,7 +28,7 @@ import io.seata.server.store.SessionStorable;
 
 /**
  * The type Default session manager, store session data in memory.
- *
+ * 默认SM
  * @author sharajava
  */
 @LoadLevel(name = "default")
@@ -46,6 +46,7 @@ public class DefaultSessionManager extends AbstractSessionManager {
      */
     public DefaultSessionManager(String name) {
         super(name);
+        // 这里创建了一个空的 存储session 对象 直接返回true
         transactionStoreManager = new AbstractTransactionStoreManager() {
             @Override
             public boolean writeSession(LogOperation logOperation, SessionStorable session) {
@@ -57,6 +58,7 @@ public class DefaultSessionManager extends AbstractSessionManager {
     @Override
     public void addGlobalSession(GlobalSession session) throws TransactionException {
         super.addGlobalSession(session);
+        // 实际上是将 session 存储在一个基于 JVM 堆内存的 map中
         sessionMap.put(session.getXid(), session);
     }
 

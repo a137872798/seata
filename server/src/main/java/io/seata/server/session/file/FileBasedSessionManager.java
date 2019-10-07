@@ -42,7 +42,7 @@ import io.seata.server.store.TransactionWriteStore;
 
 /**
  * The type File based session manager.
- *
+ * 基于文件系统的   注意该对象实现了 reloadable 接口
  * @author jimin.jm @alibaba-inc.com
  */
 @LoadLevel(name = "file")
@@ -60,6 +60,7 @@ public class FileBasedSessionManager extends DefaultSessionManager implements Re
      */
     public FileBasedSessionManager(String name, String sessionStoreFilePath) throws IOException {
         super(name);
+        // 也是委托吗
         transactionStoreManager = EnhancedServiceLoader.load(TransactionStoreManager.class, StoreMode.FILE.name(),
             new Class[] {String.class, SessionManager.class},
             new Object[] {sessionStoreFilePath + File.separator + name, this});
@@ -68,20 +69,27 @@ public class FileBasedSessionManager extends DefaultSessionManager implements Re
     @Override
     public void reload() {
         restoreSessions();
+        // 清除掉已经完成的 session 对象
         washSessions();
     }
 
+    /**
+     * 重新加载session
+     */
     private void restoreSessions() {
         Map<Long, BranchSession> unhandledBranchBuffer = new HashMap<>();
 
+        // isHistory 分别以 true 和 false 执行一次  从 TSM 中找到 session 对象并更新本对象内置map 的 数据
         restoreSessions(true, unhandledBranchBuffer);
         restoreSessions(false, unhandledBranchBuffer);
 
+        // 代表发现了 某些 branchSession没有对应的globalSession 对象
         if (!unhandledBranchBuffer.isEmpty()) {
             unhandledBranchBuffer.values().forEach(branchSession -> {
                 String xid = branchSession.getXid();
                 long bid = branchSession.getBranchId();
                 GlobalSession found = sessionMap.get(xid);
+                // 这里只是做打印日志没有特别处理
                 if (found == null) {
                     // Ignore
                     if (LOGGER.isInfoEnabled()) {
@@ -100,7 +108,11 @@ public class FileBasedSessionManager extends DefaultSessionManager implements Re
         }
     }
 
+    /**
+     * 清除已经处理完的 session
+     */
     private void washSessions() {
+        // 存在 session 的情况下
         if (sessionMap.size() > 0) {
             Iterator<Map.Entry<String, GlobalSession>> iterator = sessionMap.entrySet().iterator();
             while (iterator.hasNext()) {
@@ -115,6 +127,7 @@ public class FileBasedSessionManager extends DefaultSessionManager implements Re
                     case RollbackFailed:
                     case TimeoutRollbacked:
                     case TimeoutRollbackFailed:
+                        // 移除已处理完成的 globalSession
                     case Finished:
                         // Remove all sessions finished
                         iterator.remove();
@@ -126,10 +139,16 @@ public class FileBasedSessionManager extends DefaultSessionManager implements Re
         }
     }
 
+    /**
+     * 重新加载 数据 首先确保 TSM 实现了 reloadable 接口
+     * @param isHistory
+     * @param unhandledBranchBuffer
+     */
     private void restoreSessions(boolean isHistory, Map<Long, BranchSession> unhandledBranchBuffer) {
         if (!(transactionStoreManager instanceof ReloadableStore)) {
             return;
         }
+        // 还有数据的情况就不断的 读取
         while (((ReloadableStore)transactionStoreManager).hasRemaining(isHistory)) {
             List<TransactionWriteStore> stores = ((ReloadableStore)transactionStoreManager).readWriteStore(READ_SIZE,
                 isHistory);
@@ -137,11 +156,18 @@ public class FileBasedSessionManager extends DefaultSessionManager implements Re
         }
     }
 
+    /**
+     * @param stores
+     * @param unhandledBranchSessions   当该分支事务所属的global事务不存在时 加入到map中
+     */
     private void restore(List<TransactionWriteStore> stores, Map<Long, BranchSession> unhandledBranchSessions) {
         long maxRecoverId = UUIDGenerator.getCurrentUUID();
         for (TransactionWriteStore store : stores) {
+            // 获取写入对象 对应的 操作
             TransactionStoreManager.LogOperation logOperation = store.getOperate();
+            // 获取当时写入使用的 请求对象
             SessionStorable sessionStorable = store.getSessionRequest();
+            // 获取更大的id
             maxRecoverId = getMaxId(maxRecoverId, sessionStorable);
             switch (logOperation) {
                 case GLOBAL_ADD:
@@ -153,10 +179,13 @@ public class FileBasedSessionManager extends DefaultSessionManager implements Re
                                 .getXid());
                         break;
                     }
+                    // 找到对应的globalsession
                     GlobalSession foundGlobalSession = sessionMap.get(globalSession.getXid());
+                    // 代表是add
                     if (foundGlobalSession == null) {
                         sessionMap.put(globalSession.getXid(), globalSession);
                     } else {
+                        // 代表更新
                         foundGlobalSession.setStatus(globalSession.getStatus());
                     }
                     break;
@@ -237,6 +266,12 @@ public class FileBasedSessionManager extends DefaultSessionManager implements Re
 
     }
 
+    /**
+     * 获取更大的id
+     * @param maxRecoverId
+     * @param sessionStorable
+     * @return
+     */
     private long getMaxId(long maxRecoverId, SessionStorable sessionStorable) {
         long currentId = 0;
         if (sessionStorable instanceof GlobalSession) {

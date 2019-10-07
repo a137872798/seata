@@ -32,7 +32,7 @@ import io.seata.server.session.BranchSession;
 
 /**
  * The type Memory locker.
- *
+ * 基于java堆内存的锁
  * @author zhangsen
  * @data 2019 -05-15
  */

@@ -16,6 +16,7 @@
 package io.seata.tm.api.transaction;
 
 /**
+ * 事务钩子对象
  * @author guoyao
  * @date 2019/3/4
  */
@@ -23,21 +24,25 @@ public interface TransactionHook {
 
     /**
      * before tx begin
+     * 在事务开始前执行
      */
     void beforeBegin();
 
     /**
      * after tx begin
+     * 开始后执行
      */
     void afterBegin();
 
     /**
      * before tx commit
+     * 提交前执行
      */
     void beforeCommit();
 
     /**
      * after tx commit
+     * 提交后执行
      */
     void afterCommit();
 

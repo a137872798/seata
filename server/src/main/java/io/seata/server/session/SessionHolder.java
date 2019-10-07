@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Session holder.
- *
+ * 维护各种单例 保证对应的 manager 是全局唯一的
  * @author sharajava
  */
 public class SessionHolder {
@@ -43,6 +43,7 @@ public class SessionHolder {
 
     /**
      * The constant CONFIG.
+     * 单例对象
      */
     protected static final Configuration CONFIG = ConfigurationFactory.getInstance();
 
@@ -80,28 +81,36 @@ public class SessionHolder {
 
     /**
      * Init.
-     *
+     * 进行初始化
      * @param mode the store mode: file、db
      * @throws IOException the io exception
      */
     public static void init(String mode) throws IOException {
         if (StringUtils.isBlank(mode)) {
             //use default
+            // 获取存储模式
             mode = CONFIG.getConfig(ConfigurationKeys.STORE_MODE);
         }
         //the store mode
+        // 有基于 DB 的 存储模式 还有基于 File 的存储模式
         StoreMode storeMode = StoreMode.valueof(mode);
+        // 如果是db模式
         if (StoreMode.DB.equals(storeMode)) {
             //database store
+            // 获取基于 DB 的 SessionManager 对象
             ROOT_SESSION_MANAGER = EnhancedServiceLoader.load(SessionManager.class, StoreMode.DB.name());
+            // 获取异步处理对象  这里传入额外参数 代表使用指定的构造函数进行初始化
             ASYNC_COMMITTING_SESSION_MANAGER = EnhancedServiceLoader.load(SessionManager.class, StoreMode.DB.name(),
                 new Object[] {ASYNC_COMMITTING_SESSION_MANAGER_NAME});
+            // 获取重试对象
             RETRY_COMMITTING_SESSION_MANAGER = EnhancedServiceLoader.load(SessionManager.class, StoreMode.DB.name(),
                 new Object[] {RETRY_COMMITTING_SESSION_MANAGER_NAME});
+            // 回滚对象
             RETRY_ROLLBACKING_SESSION_MANAGER = EnhancedServiceLoader.load(SessionManager.class, StoreMode.DB.name(),
                 new Object[] {RETRY_ROLLBACKING_SESSION_MANAGER_NAME});
         } else if (StoreMode.FILE.equals(storeMode)) {
             //file store
+            // 同上 只是实现变成了基于文件
             String sessionStorePath = CONFIG.getConfig(ConfigurationKeys.STORE_FILE_DIR, DEFAULT_SESSION_STORE_FILE_DIR);
             if (sessionStorePath == null) {
                 throw new StoreException("the {store.file.dir} is empty.");
@@ -119,21 +128,28 @@ public class SessionHolder {
             throw new IllegalArgumentException("unknown store mode:" + mode);
         }
         //relaod
+        // 加载某些数据
         reload();
     }
 
     /**
      * Reload.
+     * 加载数据
      */
     protected static void reload() {
+        // 首先确保 SessionManager 是可加载对象
         if (ROOT_SESSION_MANAGER instanceof Reloadable) {
+            // 触发 manager 的 reload 方法
             ((Reloadable)ROOT_SESSION_MANAGER).reload();
 
+            // 重新加载之后 获取当前所有session
             Collection<GlobalSession> reloadedSessions = ROOT_SESSION_MANAGER.allSessions();
+            // 如果 session 本身不为空
             if (reloadedSessions != null && !reloadedSessions.isEmpty()) {
                 reloadedSessions.forEach(globalSession -> {
                     GlobalStatus globalStatus = globalSession.getStatus();
                     switch (globalStatus) {
+                        // 不允许出现这些情况 因为这些代表已经处理好了
                         case UnKnown:
                         case Committed:
                         case CommitFailed:
@@ -143,19 +159,25 @@ public class SessionHolder {
                         case TimeoutRollbackFailed:
                         case Finished:
                             throw new ShouldNeverHappenException("Reloaded Session should NOT be " + globalStatus);
+                        // 异步提交
                         case AsyncCommitting:
                             try {
+                                // 为全局session 设置 asyncCommitSessionManager 作为监听器
                                 globalSession.addSessionLifecycleListener(getAsyncCommittingSessionManager());
+                                // 为 sm 对象增加 gs 对象
                                 getAsyncCommittingSessionManager().addGlobalSession(globalSession);
                             } catch (TransactionException e) {
                                 throw new ShouldNeverHappenException(e);
                             }
                             break;
+                        // 其余代表初始状态
                         default: {
+                            // 获取 该全局事务下的分支事务
                             ArrayList<BranchSession> branchSessions = globalSession.getSortedBranches();
                             // Lock
                             branchSessions.forEach(branchSession -> {
                                 try {
+                                    // 对分事务进行加锁
                                     branchSession.lock();
                                 } catch (TransactionException e) {
                                     throw new ShouldNeverHappenException(e);
@@ -166,6 +188,7 @@ public class SessionHolder {
                                 case Committing:
                                 case CommitRetrying:
                                     try {
+                                        // 增加重试监听器
                                         globalSession.addSessionLifecycleListener(
                                             getRetryCommittingSessionManager());
                                         getRetryCommittingSessionManager().addGlobalSession(globalSession);
@@ -178,6 +201,7 @@ public class SessionHolder {
                                 case TimeoutRollbacking:
                                 case TimeoutRollbackRetrying:
                                     try {
+                                        // 增加 回滚监听器
                                         globalSession.addSessionLifecycleListener(
                                             getRetryRollbackingSessionManager());
                                         getRetryRollbackingSessionManager().addGlobalSession(globalSession);
@@ -186,6 +210,7 @@ public class SessionHolder {
                                     }
                                     break;
                                 case Begin:
+                                    // begin 代表需要设置成 活跃状态
                                     globalSession.setActive(true);
                                     break;
                                 default:
@@ -252,7 +277,7 @@ public class SessionHolder {
 
     /**
      * Find global session.
-     *
+     * 获取全局session
      * @param xid the xid
      * @return the global session
      */

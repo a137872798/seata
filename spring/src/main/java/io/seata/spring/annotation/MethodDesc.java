@@ -19,12 +19,18 @@ import java.lang.reflect.Method;
 
 /**
  * The type Method desc.
- *
+ * 方法描述信息
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /12/28
  */
 public class MethodDesc {
+    /**
+     * 该方法上标注的  全局事务注解
+     */
     private GlobalTransactional transactionAnnotation;
+    /**
+     * 方法对象本身
+     */
     private Method method;
 
     /**

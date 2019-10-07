@@ -251,12 +251,19 @@ public class LogStoreDataBaseDAO implements LogStore, Initialize {
         }
     }
 
+    /**
+     * 该对象作为 DAO  层 维护了 通过datasource 与 数据库进行交互的逻辑
+     * @param globalTransactionDO the global transaction do
+     * @return
+     */
     @Override
     public boolean insertGlobalTransactionDO(GlobalTransactionDO globalTransactionDO) {
+        // 生成插入语句  该对象内部包含了插入语句的 模板
         String sql = LogStoreSqls.getInsertGlobalTransactionSQL(globalTable, dbType);
         Connection conn = null;
         PreparedStatement ps = null;
         try {
+            // 获取连接对象
             conn = logStoreDataSource.getConnection();
             conn.setAutoCommit(true);
             ps = conn.prepareStatement(sql);

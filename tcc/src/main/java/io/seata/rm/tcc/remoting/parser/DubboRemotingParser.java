@@ -22,7 +22,7 @@ import io.seata.rm.tcc.remoting.RemotingDesc;
 
 /**
  * dubbo  remoting bean parsing
- *
+ * 基于dubbo 的解析器
  * @author zhangsen
  */
 public class DubboRemotingParser extends AbstractedRemotingParser {

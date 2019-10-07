@@ -16,7 +16,7 @@
 package io.seata.server.store;
 
 /**
- *
+ * 采用同步刷盘还是异步刷盘
  * @author lizhao
  */
 public enum  FlushDiskMode {

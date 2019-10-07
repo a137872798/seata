@@ -22,7 +22,7 @@ import java.util.List;
 
 /**
  * The type Abstract transaction store manager.
- *
+ * 存储session 骨架类
  * @author zhangsen
  * @data 2019 /4/25
  */

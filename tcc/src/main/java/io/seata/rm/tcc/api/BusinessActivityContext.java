@@ -23,7 +23,7 @@ import io.seata.common.Constants;
 
 /**
  * The type Business activity context.
- *
+ * 业务上下文对象
  * @author zhangsen
  */
 public class BusinessActivityContext implements Serializable {

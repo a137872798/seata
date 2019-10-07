@@ -23,7 +23,7 @@ import java.lang.annotation.Target;
 
 /**
  * TCC annotation, Define a TCC interface，which added on the try method
- *
+ * 2阶段注解 修饰 TCC 中的 try 方法
  * @author zhangsen
  */
 @Retention(RetentionPolicy.RUNTIME)
@@ -33,21 +33,21 @@ public @interface TwoPhaseBusinessAction {
 
     /**
      * TCC bean name, must be unique
-     *
+     * TCC bean 对应的 名称 必须唯一
      * @return the string
      */
     String name() ;
 
     /**
      * commit methed name
-     *
+     * 对应TCC 中的 confirm阶段 也就是提交
      * @return the string
      */
     String commitMethod() default "commit";
 
     /**
      * rollback method name
-     *
+     * 对应cancel 也就是回滚
      * @return the string
      */
     String rollbackMethod() default "rollback";

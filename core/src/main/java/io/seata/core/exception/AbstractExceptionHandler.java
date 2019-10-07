@@ -131,7 +131,7 @@ public abstract class AbstractExceptionHandler {
 
     /**
      * Exception handle template.
-     * 异常处理模板
+     * 一套处理模板 就是正常执行提交 否则 触发异常钩子
      * @param callback the callback
      * @param request  the request
      * @param response the response

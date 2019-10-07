@@ -24,7 +24,7 @@ public interface FailureHandler {
 
     /**
      * On begin failure.
-     *
+     * 当发现失败时
      * @param tx    the tx
      * @param cause the cause
      */
@@ -32,7 +32,7 @@ public interface FailureHandler {
 
     /**
      * On commit failure.
-     *
+     * 处理完成时
      * @param tx    the tx
      * @param cause the cause
      */
@@ -40,7 +40,7 @@ public interface FailureHandler {
 
     /**
      * On rollback failure.
-     *
+     * 当失败且进行回滚时
      * @param tx    the tx
      * @param cause the cause
      */

@@ -25,14 +25,14 @@ import io.seata.core.rpc.Disposable;
 
 /**
  * The interface Session manager.
- *
+ * session 管理器对象
  * @author sharajava
  */
 public interface SessionManager extends SessionLifecycleListener, Disposable {
 
     /**
      * Add global session.
-     *
+     * 增加某个全局session
      * @param session the session
      * @throws TransactionException the transaction exception
      */
@@ -40,7 +40,7 @@ public interface SessionManager extends SessionLifecycleListener, Disposable {
 
     /**
      * Find global session global session.
-     *
+     * 根据全局事务id 查询某个全局session
      * @param xid the xid
      * @return the global session
      */
@@ -48,7 +48,7 @@ public interface SessionManager extends SessionLifecycleListener, Disposable {
 
     /**
      * Update global session status.
-     *
+     * 更新某个全局session 的状态
      * @param session the session
      * @param status  the status
      * @throws TransactionException the transaction exception
@@ -57,7 +57,7 @@ public interface SessionManager extends SessionLifecycleListener, Disposable {
 
     /**
      * Remove global session.
-     *
+     * 移除某个全局事务的session
      * @param session the session
      * @throws TransactionException the transaction exception
      */
@@ -65,7 +65,7 @@ public interface SessionManager extends SessionLifecycleListener, Disposable {
 
     /**
      * Add branch session.
-     *
+     * 添加某个branch的 session 它是关联在某个 globalSession 下的
      * @param globalSession the global session
      * @param session       the session
      * @throws TransactionException the transaction exception
@@ -74,7 +74,7 @@ public interface SessionManager extends SessionLifecycleListener, Disposable {
 
     /**
      * Update branch session status.
-     *
+     * 更新某个 branchSession 的状态
      * @param session the session
      * @param status  the status
      * @throws TransactionException the transaction exception
@@ -83,7 +83,7 @@ public interface SessionManager extends SessionLifecycleListener, Disposable {
 
     /**
      * Remove branch session.
-     *
+     * 移除branchSession
      * @param globalSession the global session
      * @param session       the session
      * @throws TransactionException the transaction exception
@@ -92,14 +92,14 @@ public interface SessionManager extends SessionLifecycleListener, Disposable {
 
     /**
      * All sessions collection.
-     *
+     * 获取所有全局事务
      * @return the collection
      */
     Collection<GlobalSession> allSessions();
 
     /**
      * Find global sessions list.
-     *
+     * 根据查询条件获取全局事务
      * @param condition the condition
      * @return the list
      */

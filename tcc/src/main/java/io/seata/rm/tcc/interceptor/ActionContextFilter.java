@@ -19,14 +19,14 @@ import io.seata.rm.tcc.api.BusinessActionContextParameter;
 
 /**
  * The interface Action context filter.
- *
+ * action 拦截器
  * @author zhangsen
  */
 public interface ActionContextFilter {
 
     /**
      * Need filter boolean.
-     *
+     * 这里怎么会需要一个 注解作为参数???
      * @param parameter the parameter
      * @return the boolean
      */

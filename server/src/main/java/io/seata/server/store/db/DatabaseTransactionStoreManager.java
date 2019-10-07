@@ -47,7 +47,7 @@ import io.seata.server.store.TransactionStoreManager;
 
 /**
  * The type Database transaction store manager.
- *
+ * 基于DB 的  TSM 对象
  * @author zhangsen
  * @data 2019 /4/2
  */
@@ -77,6 +77,7 @@ public class DatabaseTransactionStoreManager extends AbstractTransactionStoreMan
 
     /**
      * The Log query limit.
+     * 查询条数限制
      */
     protected int logQueryLimit;
 
@@ -86,23 +87,39 @@ public class DatabaseTransactionStoreManager extends AbstractTransactionStoreMan
     public DatabaseTransactionStoreManager() {
     }
 
+    /**
+     * 初始化 TSM 对象
+     */
     @Override
     public synchronized void init() {
+        // 如果已经完成初始化 直接返回
         if (inited.get()) {
             return;
         }
+        // 获取查询限制
         logQueryLimit = CONFIG.getInt(ConfigurationKeys.STORE_DB_LOG_QUERY_LIMIT, DEFAULT_LOG_QUERY_LIMIT);
+        // 获取数据库类型
         String datasourceType = CONFIG.getConfig(ConfigurationKeys.STORE_DB_DATASOURCE_TYPE);
         //init dataSource
+        // 通过SPI机制加载dataSource 生成器对象
         DataSourceGenerator dataSourceGenerator = EnhancedServiceLoader.load(DataSourceGenerator.class, datasourceType);
+        // 生成 DataSource 对象
         DataSource logStoreDataSource = dataSourceGenerator.generateDataSource();
+        // 获取访问 globalSession 的基础接口对象
         logStore = EnhancedServiceLoader.load(LogStore.class, StoreMode.DB.name(), new Class[] {DataSource.class},
             new Object[] {logStoreDataSource});
         inited.set(true);
     }
 
+    /**
+     * 写入 session
+     * @param logOperation the log operation
+     * @param session      the session
+     * @return
+     */
     @Override
     public boolean writeSession(LogOperation logOperation, SessionStorable session) {
+        // 通过 operationType 执行不同的操作
         if (LogOperation.GLOBAL_ADD.equals(logOperation)) {
             logStore.insertGlobalTransactionDO(convertGlobalTransactionDO(session));
         } else if (LogOperation.GLOBAL_UPDATE.equals(logOperation)) {
@@ -123,7 +140,7 @@ public class DatabaseTransactionStoreManager extends AbstractTransactionStoreMan
 
     /**
      * Read session global session.
-     *
+     * 通过事务id 定位到某个全局事务对象上
      * @param transactionId the transaction id
      * @return the global session
      */
@@ -136,6 +153,7 @@ public class DatabaseTransactionStoreManager extends AbstractTransactionStoreMan
         //branch transactions
         List<BranchTransactionDO> branchTransactionDOs = logStore.queryBranchTransactionDO(
             globalTransactionDO.getXid());
+        // 看来 session 对象是由  globalTransactionDO + branchTransactionDO 组合成的
         return getGlobalSession(globalTransactionDO, branchTransactionDOs);
     }
 
@@ -160,7 +178,7 @@ public class DatabaseTransactionStoreManager extends AbstractTransactionStoreMan
 
     /**
      * Read session list.
-     *
+     * 通过一组状态对象查询对应状态的 globalSession 对象
      * @param statuses the statuses
      * @return the list
      */
@@ -169,13 +187,17 @@ public class DatabaseTransactionStoreManager extends AbstractTransactionStoreMan
         for (int i = 0; i < statuses.length; i++) {
             states[i] = statuses[i].getCode();
         }
+        // 获取全局事务对象
         List<GlobalSession> globalSessions = new ArrayList<GlobalSession>();
         //global transaction
+        // 通过状态和查询条数 限制结果集
         List<GlobalTransactionDO> globalTransactionDOs = logStore.queryGlobalTransactionDO(states, logQueryLimit);
         if (CollectionUtils.isEmpty(globalTransactionDOs)) {
             return null;
         }
+        // 获取返回的所有全局事务对象
         for (GlobalTransactionDO globalTransactionDO : globalTransactionDOs) {
+            // 通过事务id 从总事务对象中获取 分事务
             List<BranchTransactionDO> branchTransactionDOs = logStore.queryBranchTransactionDO(
                 globalTransactionDO.getXid());
             globalSessions.add(getGlobalSession(globalTransactionDO, branchTransactionDOs));
@@ -183,6 +205,11 @@ public class DatabaseTransactionStoreManager extends AbstractTransactionStoreMan
         return globalSessions;
     }
 
+    /**
+     * 根据条件查询 全局session 对象
+     * @param sessionCondition the session condition
+     * @return
+     */
     @Override
     public List<GlobalSession> readSession(SessionCondition sessionCondition) {
         if (StringUtils.isNotBlank(sessionCondition.getXid())) {
@@ -205,6 +232,12 @@ public class DatabaseTransactionStoreManager extends AbstractTransactionStoreMan
         return null;
     }
 
+    /**
+     * 将 globalTransactionDO 与 branchTransactionDO 组合成 session 对象
+     * @param globalTransactionDO
+     * @param branchTransactionDOs
+     * @return
+     */
     private GlobalSession getGlobalSession(GlobalTransactionDO globalTransactionDO,
                                            List<BranchTransactionDO> branchTransactionDOs) {
         GlobalSession globalSession = convertGlobalSession(globalTransactionDO);
@@ -245,13 +278,20 @@ public class DatabaseTransactionStoreManager extends AbstractTransactionStoreMan
         return branchSession;
     }
 
+    /**
+     * 将可存储的 session 对象保存到数据库中
+     * @param session
+     * @return
+     */
     private GlobalTransactionDO convertGlobalTransactionDO(SessionStorable session) {
+        // 要求调用该方法的必须是 GlobalSession 对象
         if (session == null || !(session instanceof GlobalSession)) {
             throw new IllegalArgumentException(
                 "the parameter of SessionStorable is not available, SessionStorable:" + StringUtils.toString(session));
         }
         GlobalSession globalSession = (GlobalSession)session;
 
+        // 转换成 DO 对象
         GlobalTransactionDO globalTransactionDO = new GlobalTransactionDO();
         globalTransactionDO.setXid(globalSession.getXid());
         globalTransactionDO.setStatus(globalSession.getStatus().getCode());

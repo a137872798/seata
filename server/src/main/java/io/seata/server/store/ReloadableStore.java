@@ -36,7 +36,7 @@ public interface ReloadableStore {
 
     /**
      * Has remaining boolean.
-     *
+     * 是否还有数据
      * @param isHistory the is history
      * @return the boolean
      */

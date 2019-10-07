@@ -21,7 +21,7 @@ import io.seata.core.context.RootContext;
 
 /**
  * Template of executing business logic in a local transaction with Global lock.
- *
+ * 全局锁模板
  * @param <T>
  * @author deyou
  * @date 2019.03.07
@@ -30,7 +30,7 @@ public class GlobalLockTemplate<T> {
 
     /**
      * Execute object.
-     *
+     * 执行回调函数
      * @param business the business
      * @return the object
      * @throws Exception
@@ -40,12 +40,14 @@ public class GlobalLockTemplate<T> {
         Object rs = null;
         try {
             // add global lock declare
+            // 绑定全局事务标识
             RootContext.bindGlobalLockFlag();
 
             // Do Your Business
             rs = business.call();
         } finally {
             //clean the global lock declare
+            // 接触绑定
             RootContext.unbindGlobalLockFlag();
         }
 

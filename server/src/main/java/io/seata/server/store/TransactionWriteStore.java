@@ -24,12 +24,18 @@ import io.seata.server.store.TransactionStoreManager.LogOperation;
 
 /**
  * The type Transaction write store.
- *
+ * 存储session 的对象
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /12/11
  */
 public class TransactionWriteStore implements SessionStorable {
+    /**
+     * 存储对象
+     */
     private SessionStorable sessionRequest;
+    /**
+     * 对应的操作
+     */
     private LogOperation operate;
 
     /**

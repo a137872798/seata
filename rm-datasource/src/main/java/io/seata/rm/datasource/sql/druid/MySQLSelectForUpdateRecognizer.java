@@ -62,13 +62,16 @@ public class MySQLSelectForUpdateRecognizer extends BaseRecognizer implements SQ
 
     @Override
     public String getWhereCondition(final ParametersHolder parametersHolder, final ArrayList<List<Object>> paramAppenderList) {
+        // 获取select锁对象
         SQLSelectQueryBlock selectQueryBlock = getSelect();
+        // 获取where 的部分 如果没有找到 直接返回 ""
         SQLExpr where = selectQueryBlock.getWhere();
         if (where == null) {
             return "";
         }
         StringBuilder sb = new StringBuilder();
         MySqlOutputVisitor visitor = super.createMySqlOutputVisitor(parametersHolder, paramAppenderList, sb);
+        // 该方法 就可以看作是将 参数 转移到了 paramAppenderList 中
         if (where instanceof SQLBinaryOpExpr) {
             visitor.visit((SQLBinaryOpExpr) where);
         } else if (where instanceof SQLInListExpr) {
@@ -94,6 +97,10 @@ public class MySQLSelectForUpdateRecognizer extends BaseRecognizer implements SQ
         return sb.toString();
     }
 
+    /**
+     * 直接从 dataSource 中获取 锁对象 基于 druid 的实现
+     * @return
+     */
     private SQLSelectQueryBlock getSelect() {
         SQLSelect select = ast.getSelect();
         if (select == null) {

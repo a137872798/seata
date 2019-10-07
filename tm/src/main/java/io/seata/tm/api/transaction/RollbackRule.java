@@ -20,14 +20,22 @@ import io.seata.common.util.StringUtils;
 import java.io.Serializable;
 
 /**
+ * 回滚规则对象
  * @author guoyao
  * @date 2019/4/17
  */
 public class RollbackRule implements Serializable {
 
 
+    /**
+     * 代表如果遇到什么异常会进行回滚???
+     */
     private final String exceptionName;
 
+    /**
+     * 使用指定的回滚异常名进行初始化
+     * @param exceptionName
+     */
     public RollbackRule(String exceptionName) {
         if (StringUtils.isNullOrEmpty(exceptionName)) {
             throw new IllegalArgumentException("'exceptionName' cannot be null or empty");
@@ -51,12 +59,18 @@ public class RollbackRule implements Serializable {
     }
 
 
+    /**
+     * 判断指定的异常在 多少层嵌套中???
+     * @param ex
+     * @return
+     */
     public int getDepth(Throwable ex) {
         return getDepth(ex.getClass(), 0);
     }
 
 
     private int getDepth(Class<?> exceptionClass, int depth) {
+        // 如果直接找到 直接返回
         if (exceptionClass.getName().contains(this.exceptionName)) {
             // Found it!
             return depth;

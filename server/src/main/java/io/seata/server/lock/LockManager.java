@@ -21,14 +21,14 @@ import io.seata.server.session.GlobalSession;
 
 /**
  * The interface Lock manager.
- *
+ * 锁对象管理器
  * @author sharajava
  */
 public interface LockManager {
 
     /**
      * Acquire lock boolean.
-     *
+     * 获取锁
      * @param branchSession the branch session
      * @return the boolean
      * @throws TransactionException the transaction exception
@@ -37,7 +37,7 @@ public interface LockManager {
 
     /**
      * Un lock boolean.
-     *
+     * 释放锁
      * @param branchSession the branch session
      * @return the boolean
      * @throws TransactionException the transaction exception
@@ -46,7 +46,7 @@ public interface LockManager {
 
     /**
      * Un lock boolean.
-     *
+     * 释放全局session 锁
      * @param globalSession the global session
      * @return the boolean
      * @throws TransactionException the transaction exception
@@ -55,7 +55,7 @@ public interface LockManager {
 
     /**
      * Is lockable boolean.
-     *
+     * 判断给定事务是否已经上锁
      * @param xid        the xid
      * @param resourceId the resource id
      * @param lockKey    the lock key
@@ -66,7 +66,7 @@ public interface LockManager {
 
     /**
      * Clean all locks.
-     *
+     * 清除所有锁
      * @throws TransactionException the transaction exception
      */
     void cleanAllLocks() throws TransactionException;

@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 
 /**
  * The type MySQL keyword checker.
- *
+ * 关键字检查对象
  * @author xingfudeshi@gmail.com
  * @date 2019/3/5 MySQL keyword checker
  */

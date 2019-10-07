@@ -30,6 +30,10 @@ import io.seata.rm.datasource.undo.SQLUndoLog;
  * @author sharajava
  */
 public class ConnectionContext {
+
+    /**
+     * 全局事务id
+     */
     private String xid;
     private Long branchId;
     /**

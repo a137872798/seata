@@ -33,11 +33,14 @@ import io.seata.rm.datasource.sql.SQLType;
 
 /**
  * The type My sql delete recognizer.
- *
+ * 针对删除操作的识别对象
  * @author sharajava
  */
 public class MySQLDeleteRecognizer extends BaseRecognizer implements SQLDeleteRecognizer {
 
+    /**
+     * 删除的会话对象  是 druid内部的类
+     */
     private final MySqlDeleteStatement ast;
 
     /**
@@ -72,17 +75,26 @@ public class MySQLDeleteRecognizer extends BaseRecognizer implements SQLDeleteRe
                 return false;
             }
         };
+        // 将方法会将 表信息 设置到sb 中
         visitor.visit((SQLExprTableSource) ast.getTableSource());
         return sb.toString();
     }
 
+    /**
+     * 获取 where 条件
+     * @param parametersHolder the parameters holder
+     * @param paramAppenderList    the param appender list
+     * @return
+     */
     @Override
     public String getWhereCondition(final ParametersHolder parametersHolder, final ArrayList<List<Object>> paramAppenderList) {
+        // 获取 where 表达式 如果没有直接返回 ""
         SQLExpr where = ast.getWhere();
         if (where == null) {
             return "";
         }
         StringBuilder sb = new StringBuilder();
+        // 创建携带参数的 visitor 对象
         MySqlOutputVisitor visitor = super.createMySqlOutputVisitor(parametersHolder, paramAppenderList, sb);
         if (where instanceof SQLBinaryOpExpr) {
             visitor.visit((SQLBinaryOpExpr) where);

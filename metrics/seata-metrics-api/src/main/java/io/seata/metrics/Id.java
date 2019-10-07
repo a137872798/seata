@@ -22,7 +22,7 @@ import java.util.UUID;
 
 /**
  * Meter id
- *
+ * 测量id 对象
  * @author zhengyangyong
  */
 public class Id {
@@ -30,6 +30,9 @@ public class Id {
 
     private final String name;
 
+    /**
+     * 排序map 比如 treeMap
+     */
     private final SortedMap<String, String> tags;
 
     public UUID getId() {

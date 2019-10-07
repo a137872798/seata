@@ -87,18 +87,29 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
         this.sqlRecognizer = sqlRecognizer;
     }
 
+    /**
+     * 执行逻辑
+     * @param args the args
+     * @return
+     * @throws Throwable
+     */
     @Override
     public Object execute(Object... args) throws Throwable {
+        // 判断当前是否在一个全局事务中
         if (RootContext.inGlobalTransaction()) {
+            // 获取全局事务id
             String xid = RootContext.getXID();
+            // 将会话绑定到该事务上
             statementProxy.getConnectionProxy().bind(xid);
         }
 
+        // 判断是否需要全局锁
         if (RootContext.requireGlobalLock()) {
             statementProxy.getConnectionProxy().setGlobalLockRequire(true);
         } else {
             statementProxy.getConnectionProxy().setGlobalLockRequire(false);
         }
+        // 真正的执行逻辑由子类实现
         return doExecute(args);
     }
 
@@ -113,7 +124,7 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
 
     /**
      * Build where condition by p ks string.
-     *
+     * 使用主键来生成where 条件
      * @param pkRows the pk rows
      * @return the string
      * @throws SQLException the sql exception
@@ -121,6 +132,7 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
     protected String buildWhereConditionByPKs(List<Field> pkRows) throws SQLException {
         StringJoiner whereConditionAppender = new StringJoiner(" OR ");
         for (Field field : pkRows) {
+            // 会变成 pk1 = ? OR pk2 = ? OR pk3 = ?
             whereConditionAppender.add(getColumnNameInSQL(field.getName()) + " = ?");
         }
         return whereConditionAppender.toString();
@@ -129,19 +141,21 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
 
     /**
      * build buildWhereCondition
-     *
+     * 构建where 条件
      * @param recognizer        the recognizer
      * @param paramAppenderList the param paramAppender list
      * @return the string
      */
     protected String buildWhereCondition(WhereRecognizer recognizer, ArrayList<List<Object>> paramAppenderList) {
         String whereCondition = null;
+        // 代表 PreparedStatementProxy 对象   并获取 where 的条件表达式
         if (statementProxy instanceof ParametersHolder) {
             whereCondition = recognizer.getWhereCondition((ParametersHolder) statementProxy, paramAppenderList);
         } else {
             whereCondition = recognizer.getWhereCondition();
         }
         //process batch operation
+        // 处理批操作
         if (StringUtils.isNotBlank(whereCondition) && CollectionUtils.isNotEmpty(paramAppenderList) && paramAppenderList.size() > 1) {
             StringBuilder whereConditionSb = new StringBuilder();
             whereConditionSb.append(" ( ").append(whereCondition).append(" ) ");
@@ -155,18 +169,19 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
 
     /**
      * Gets column name in sql.
-     *
+     * 从sql 中分解出col 名字
      * @param columnName the column name
      * @return the column name in sql
      */
     protected String getColumnNameInSQL(String columnName) {
+        // 这层由datasource 层实现
         String tableAlias = sqlRecognizer.getTableAlias();
         return tableAlias == null ? columnName : tableAlias + "." + columnName;
     }
 
     /**
      * Gets from table in sql.
-     *
+     * 获取 表名  底层通过 datasource 那层实现  比如 druid
      * @return the from table in sql
      */
     protected String getFromTableInSQL() {
@@ -177,7 +192,7 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
 
     /**
      * Gets table meta.
-     *
+     * 获取元数据信息
      * @return the table meta
      */
     protected TableMeta getTableMeta() {
@@ -186,7 +201,7 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
 
     /**
      * Gets table meta.
-     *
+     * 通过表名获取元数据信息
      * @param tableName the table name
      * @return the table meta
      */
@@ -197,6 +212,8 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
         if (JdbcConstants.ORACLE.equalsIgnoreCase(statementProxy.getConnectionProxy().getDbType())) {
             tableMeta = TableMetaCacheOracle.getTableMeta(statementProxy.getConnectionProxy().getDataSourceProxy(), tableName);
         } else {
+            // 从缓存中获取 如果没有的化就创建新数据 并设置到引用中
+            // 生成方式就是通过 connection 去数据库拉取 表的相关信息
             tableMeta = TableMetaCache.getTableMeta(statementProxy.getConnectionProxy().getDataSourceProxy(), tableName);
         }
         return tableMeta;
@@ -204,9 +221,9 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
 
     /**
      * prepare undo log.
-     *
-     * @param beforeImage the before image
-     * @param afterImage  the after image
+     * 创建撤销日志
+     * @param beforeImage the before image   代表之前的快照信息
+     * @param afterImage  the after image    之后的快照信息
      * @throws SQLException the sql exception
      */
     protected void prepareUndoLog(TableRecords beforeImage, TableRecords afterImage) throws SQLException {
@@ -216,17 +233,22 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
 
         ConnectionProxy connectionProxy = statementProxy.getConnectionProxy();
 
+        // 这里什么意思 如果是DELETE 类型就返回before 否则 返回after???
         TableRecords lockKeyRecords = sqlRecognizer.getSQLType() == SQLType.DELETE ? beforeImage : afterImage;
+        // 构建锁语句
         String lockKeys = buildLockKey(lockKeyRecords);
+        // 这里是设置到 connectionContext 的 一个 buffer 中(一个set结构)
         connectionProxy.appendLockKey(lockKeys);
 
+        // 通过 before 和after 对象生成 一个 SQLUndoLog 对象
         SQLUndoLog sqlUndoLog = buildUndoItem(beforeImage, afterImage);
+        // 保存到上下文中 也是保存到某个set中
         connectionProxy.appendUndoLog(sqlUndoLog);
     }
 
     /**
      * build lockKey
-     *
+     * 构建锁语句   返回的应该是 tableName:pk1,pk2....
      * @param rowsIncludingPK the records
      * @return the string
      */
@@ -235,9 +257,11 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
             return null;
         }
         StringBuilder sb = new StringBuilder();
+        // 表名
         sb.append(rowsIncludingPK.getTableMeta().getTableName());
         sb.append(":");
         int filedSequence = 0;
+        // 主键名
         for (Field field : rowsIncludingPK.pkRows()) {
             sb.append(field.getValue());
             filedSequence++;
@@ -250,7 +274,7 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
 
     /**
      * build a SQLUndoLog
-     *
+     * 构建撤销日志
      * @param beforeImage the before image
      * @param afterImage  the after image
      * @return sql undo log
@@ -270,7 +294,7 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
 
     /**
      * build a BeforeImage
-     *
+     * 构建 tableRecord 信息
      * @param tableMeta         the tableMeta
      * @param selectSQL         the selectSQL
      * @param paramAppenderList the paramAppender list
@@ -283,9 +307,13 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
         Statement st = null;
         ResultSet rs = null;
         try {
+            // 当不存在参数时 就创建 普通的 statement 对象
             if (paramAppenderList.isEmpty()) {
+                // 通过 java.sql.connection 对象 构建statement对象
                 st = statementProxy.getConnection().createStatement();
+                // 执行查询语句
                 rs = st.executeQuery(selectSQL);
+            // 创建携带参数的 preparedStatement 对象
             } else {
                 if (paramAppenderList.size() == 1) {
                     ps = statementProxy.getConnection().prepareStatement(selectSQL);
@@ -294,6 +322,7 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
                         ps.setObject(i + 1, paramAppender.get(i));
                     }
                 } else {
+                    // 如果 paramAppenderList 本身长度不为1  有这么多参数吗???
                     ps = statementProxy.getConnection().prepareStatement(selectSQL);
                     List<Object> paramAppender = null;
                     for (int i = 0; i < paramAppenderList.size(); i++) {
@@ -305,6 +334,7 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
                 }
                 rs = ps.executeQuery();
             }
+            // 通过结果集 和 元数据信息生成 tableRecord 对象
             tableRecords = TableRecords.buildRecords(tableMeta, rs);
         } finally {
             if (rs != null) {
@@ -322,7 +352,7 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
 
     /**
      * build TableRecords
-     *
+     * 通过一组主键对象来构建 tableRecord
      * @param pkValues the pkValues
      * @return return TableRecords;
      * @throws SQLException
@@ -336,6 +366,7 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
         }
         PreparedStatement ps = null;
         ResultSet rs = null;
+        // 生成一个 依赖一组pk 对象进行查询的 select 语句
         try {
             ps = statementProxy.getConnection().prepareStatement(pkValuesJoiner.toString());
 
@@ -343,7 +374,9 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
                 ps.setObject(i, pkValues.get(i - 1));
             }
 
+            // 查询并生成结果
             rs = ps.executeQuery();
+            // 返回after 对象 可以理解为一个新快照吗???
             afterImage = TableRecords.buildRecords(getTableMeta(), rs);
 
         } finally {

@@ -21,21 +21,21 @@ import io.seata.core.model.GlobalStatus;
 
 /**
  * The interface Session lifecycle.
- *
+ * session 的生命周期对象
  * @author sharajava
  */
 public interface SessionLifecycle {
 
     /**
      * Begin.
-     *
+     * 开启阶段
      * @throws TransactionException the transaction exception
      */
     void begin() throws TransactionException;
 
     /**
      * Change status.
-     *
+     * 状态发生变化的阶段
      * @param status the status
      * @throws TransactionException the transaction exception
      */
@@ -43,7 +43,7 @@ public interface SessionLifecycle {
 
     /**
      * Change branch status.
-     *
+     * 分事务发生变化时
      * @param branchSession the branch session
      * @param status        the status
      * @throws TransactionException the transaction exception
@@ -52,7 +52,7 @@ public interface SessionLifecycle {
 
     /**
      * Add branch.
-     *
+     * 添加分事务
      * @param branchSession the branch session
      * @throws TransactionException the transaction exception
      */
@@ -60,7 +60,7 @@ public interface SessionLifecycle {
 
     /**
      * Remove branch.
-     *
+     * 移除某个事务
      * @param branchSession the branch session
      * @throws TransactionException the transaction exception
      */
@@ -68,7 +68,7 @@ public interface SessionLifecycle {
 
     /**
      * Is active boolean.
-     *
+     * 判断当前session 是否存活
      * @return the boolean
      */
     boolean isActive();

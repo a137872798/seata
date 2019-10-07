@@ -20,7 +20,7 @@ import io.seata.metrics.Id;
 
 /**
  * Constants for meter id in tc
- *
+ * 测量常量对象
  * @author zhengyangyong
  */
 public class MeterIdConstants {

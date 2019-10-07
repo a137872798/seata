@@ -29,13 +29,16 @@ import io.seata.core.store.StoreMode;
 
 /**
  * The type Data base locker.
- *
+ * 基于数据库的锁对象
  * @author zhangsen
  * @data 2019 -05-15
  */
 @LoadLevel(name = "db")
 public class DataBaseLocker extends AbstractLocker {
 
+    /**
+     * 存储对象
+     */
     private LockStore lockStore;
 
     /**

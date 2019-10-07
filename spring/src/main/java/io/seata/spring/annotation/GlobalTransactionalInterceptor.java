@@ -42,16 +42,28 @@ import java.util.stream.Collectors;
 
 /**
  * The type Global transactional interceptor.
- *
+ * 拦截器对象 就是在这里插入 全局事务的逻辑
  * @author jimin.jm @alibaba-inc.com
  */
 public class GlobalTransactionalInterceptor implements MethodInterceptor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobalTransactionalInterceptor.class);
+    /**
+     * 失败处理器
+     */
     private static final FailureHandler DEFAULT_FAIL_HANDLER = new DefaultFailureHandlerImpl();
 
+    /**
+     * 事务模板对象 内部定义了 全局事务的一整套流程
+     */
     private final TransactionalTemplate transactionalTemplate = new TransactionalTemplate();
+    /**
+     * 全局锁模板
+     */
     private final GlobalLockTemplate<Object> globalLockTemplate = new GlobalLockTemplate<>();
+    /**
+     * 失败处理器
+     */
     private final FailureHandler failureHandler;
 
     /**
@@ -64,24 +76,44 @@ public class GlobalTransactionalInterceptor implements MethodInterceptor {
 
     }
 
+    /**
+     * 拦截aop 执行的方法
+     * @param methodInvocation
+     * @return
+     * @throws Throwable
+     */
     @Override
     public Object invoke(final MethodInvocation methodInvocation) throws Throwable {
+        // 获取被拦截的目标类
         Class<?> targetClass = (methodInvocation.getThis() != null ? AopUtils.getTargetClass(methodInvocation.getThis()) : null);
+        // 如果该方法存在重写版本 尽可能获取重写版本
         Method specificMethod = ClassUtils.getMostSpecificMethod(methodInvocation.getMethod(), targetClass);
+        // 如果存在桥接方法的情况下 返回桥接方法
         final Method method = BridgeMethodResolver.findBridgedMethod(specificMethod);
 
+        // 获取方法上的 注解
         final GlobalTransactional globalTransactionalAnnotation = getAnnotation(method, GlobalTransactional.class);
         final GlobalLock globalLockAnnotation = getAnnotation(method, GlobalLock.class);
         if (globalTransactionalAnnotation != null) {
+            // 处理全局事务
             return handleGlobalTransaction(methodInvocation, globalTransactionalAnnotation);
         } else if (globalLockAnnotation != null) {
+            // 处理全局锁
             return handleGlobalLock(methodInvocation);
         } else {
+            // 正常执行
             return methodInvocation.proceed();
         }
     }
 
+    /**
+     * 处理全局锁
+     * @param methodInvocation
+     * @return
+     * @throws Exception
+     */
     private Object handleGlobalLock(final MethodInvocation methodInvocation) throws Exception {
+        // 使用模板执行
         return globalLockTemplate.execute(() -> {
             try {
                 return methodInvocation.proceed();
@@ -95,6 +127,13 @@ public class GlobalTransactionalInterceptor implements MethodInterceptor {
         });
     }
 
+    /**
+     * 使用模板执行
+     * @param methodInvocation
+     * @param globalTrxAnno
+     * @return
+     * @throws Throwable
+     */
     private Object handleGlobalTransaction(final MethodInvocation methodInvocation,
                                            final GlobalTransactional globalTrxAnno) throws Throwable {
         try {
@@ -112,6 +151,10 @@ public class GlobalTransactionalInterceptor implements MethodInterceptor {
                     return formatMethod(methodInvocation.getMethod());
                 }
 
+                /**
+                 * 获取事务信息
+                 * @return
+                 */
                 @Override
                 public TransactionInfo getTransactionInfo() {
                     TransactionInfo transactionInfo = new TransactionInfo();

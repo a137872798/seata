@@ -26,6 +26,13 @@ import io.seata.rm.tcc.remoting.RemotingParser;
 public abstract class AbstractedRemotingParser implements RemotingParser {
 
 
+    /**
+     * 如果是 dubbo:  或者  sofa:  为前缀的标签 那么就是 使用了某个 RPC 框架
+     * @param bean     the bean
+     * @param beanName the bean name
+     * @return
+     * @throws FrameworkException
+     */
     @Override
     public boolean isRemoting(Object bean, String beanName) throws FrameworkException {
         return isReference(bean, beanName) || isService(bean, beanName);

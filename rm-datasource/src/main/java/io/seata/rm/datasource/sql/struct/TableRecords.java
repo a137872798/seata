@@ -166,30 +166,39 @@ public class TableRecords {
 
     /**
      * Build records table records.
-     *
+     * 通过 表的元数据信息 和 执行某条查询sql的结果集 构建tableRecord 对象
      * @param tmeta     the tmeta
      * @param resultSet the result set
      * @return the table records
      * @throws SQLException the sql exception
      */
     public static TableRecords buildRecords(TableMeta tmeta, ResultSet resultSet) throws SQLException {
+        // 通过元数据信息 创建tableRecord
         TableRecords records = new TableRecords(tmeta);
+        // 获取结果集的元数据信息
         ResultSetMetaData resultSetMetaData = resultSet.getMetaData();
+        // 获取有多少行
         int columnCount = resultSetMetaData.getColumnCount();
 
         while (resultSet.next()) {
             List<Field> fields = new ArrayList<>(columnCount);
             for (int i = 1; i <= columnCount; i++) {
+                // 获取 对应的 col 名
                 String colName = resultSetMetaData.getColumnName(i);
+                // 从tableMeta中获取对应的列元数据信息
                 ColumnMeta col = tmeta.getColumnMeta(colName);
+                // 构建一个  字段对象 设置列名
                 Field field = new Field();
                 field.setName(col.getColumnName());
+                // 如果是主键 标记起来
                 if (tmeta.getPkName().equalsIgnoreCase(field.getName())) {
                     field.setKeyType(KeyType.PrimaryKey);
                 }
+                // 设置数据类型
                 field.setType(col.getDataType());
                 // mysql will not run in this code
                 // cause mysql does not use java.sql.Blob, java.sql.sql.Clob to process Blob and Clob column
+                // 如果是大数据类型如果发现是 Blob类型  这里转换成 SerialBlob 好像是因为 mysql不能直接支持 Blob和 Clob
                 if (col.getDataType() == JDBCType.BLOB.getVendorTypeNumber()) {
                     Blob blob = resultSet.getBlob(i);
                     if (blob != null) {

@@ -33,7 +33,7 @@ import java.util.Map;
 
 /**
  * TCC Interceptor
- *
+ * TCC 拦截器对象
  * @author zhangsen
  */
 public class TccActionInterceptor implements MethodInterceptor {
@@ -43,6 +43,9 @@ public class TccActionInterceptor implements MethodInterceptor {
     private static final String DUBBO_PROXY_NAME_PREFIX="com.alibaba.dubbo.common.bytecode.proxy";
 
 
+    /**
+     * 拦截处理器
+     */
     private ActionInterceptorHandler actionInterceptorHandler = new ActionInterceptorHandler();
 
     /**
@@ -65,8 +68,15 @@ public class TccActionInterceptor implements MethodInterceptor {
         this.remotingDesc = remotingDesc;
     }
 
+    /**
+     * 拦截方法
+     * @param invocation
+     * @return
+     * @throws Throwable
+     */
     @Override
     public Object invoke(final MethodInvocation invocation) throws Throwable {
+        // 非全局事务下按
         if(!RootContext.inGlobalTransaction()){
             //not in transaction
             return invocation.proceed();

@@ -19,7 +19,7 @@ import io.seata.common.util.StringUtils;
 
 /**
  * the TCC method result
- *
+ * 二阶段 提交结果 判断是否成功 已经错误消息
  * @author zhangsen
  */
 public class TwoPhaseResult {
