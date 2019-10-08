@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Abstract lock manager.
- *
+ * LM 对象 具备 加锁和 解锁的功能
  * @author zhangsen
  * @data 2019 /4/25
  */
@@ -50,11 +50,14 @@ public abstract class AbstractLockManager implements LockManager {
             return locks;
         }
         String xid = branchSession.getXid();
+        // 获取该 分支的 唯一标识
         String resourceId = branchSession.getResourceId();
         long transactionId = branchSession.getTransactionId();
 
+        // 获取锁字段
         String lockKey = branchSession.getLockKey();
 
+        // 收集需要上锁的 行
         return collectRowLocks(lockKey, resourceId, xid, transactionId, branchSession.getBranchId());
     }
 
@@ -72,7 +75,7 @@ public abstract class AbstractLockManager implements LockManager {
 
     /**
      * Collect row locks list.
-     *
+     * 收集需要上锁的行
      * @param lockKey       the lock key
      * @param resourceId    the resource id
      * @param xid           the xid
@@ -90,17 +93,21 @@ public abstract class AbstractLockManager implements LockManager {
             if (idx < 0) {
                 return locks;
             }
+            // :前面的代表表名
             String tableName = tableGroupedLockKey.substring(0, idx);
+            // 后面部分代表 主键
             String mergedPKs = tableGroupedLockKey.substring(idx + 1);
             if (StringUtils.isBlank(mergedPKs)) {
                 return locks;
             }
+            // 主键通过 , 拼接 这里是拆分他们
             String[] pks = mergedPKs.split(",");
             if (pks == null || pks.length == 0) {
                 return locks;
             }
             for (String pk : pks) {
                 if (StringUtils.isNotBlank(pk)) {
+                    // 为每个主键生成 lock 对象
                     RowLock rowLock = new RowLock();
                     rowLock.setXid(xid);
                     rowLock.setTransactionId(transactionId);

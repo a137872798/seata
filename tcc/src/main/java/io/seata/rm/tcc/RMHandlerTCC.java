@@ -23,7 +23,7 @@ import io.seata.rm.DefaultResourceManager;
 
 /**
  * The type Rm handler tcc.
- *
+ * RM 类型的 TCC 处理器
  * @author zhangsen
  */
 public class RMHandlerTCC extends AbstractRMHandler {

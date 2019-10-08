@@ -25,7 +25,7 @@ import io.seata.rm.tcc.remoting.RemotingDesc;
 
 /**
  * local tcc bean parsing
- *
+ * 本地TCC bean 解析器
  * @author zhangsen
  */
 public class LocalTCCRemotingParser extends AbstractedRemotingParser {

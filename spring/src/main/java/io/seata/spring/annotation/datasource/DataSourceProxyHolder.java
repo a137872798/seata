@@ -22,12 +22,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * the type data source proxy holder
- *
+ * 数据源代理对象
  * @author xingfudeshi@gmail.com
  * @date 2019/08/23
  */
 public class DataSourceProxyHolder {
     private static final int MAP_INITIAL_CAPACITY = 8;
+    /**
+     * 维系 数据源 与代理对象的容器
+     */
     private ConcurrentHashMap<DataSource, DataSourceProxy> dataSourceProxyMap;
 
     private DataSourceProxyHolder() {

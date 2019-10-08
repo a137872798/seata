@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Global session.
- *
+ * 全局事务对象  大体上同 branchSession 是一样的
  * @author sharajava
  */
 public class GlobalSession implements SessionLifecycle, SessionStorable {
@@ -97,15 +97,19 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
         return branchSessions.remove(branchSession);
     }
 
+    /**
+     * 存放监听器的容器
+     */
     private Set<SessionLifecycleListener> lifecycleListeners = new HashSet<>();
 
     /**
      * Can be committed async boolean.
-     *
+     * 判断能否异步提交
      * @return the boolean
      */
     public boolean canBeCommittedAsync() {
         for (BranchSession branchSession : branchSessions) {
+            // TCC 不满足异步提交条件
             if (branchSession.getBranchType() == BranchType.TCC) {
                 return false;
             }
@@ -122,11 +126,16 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
         return (System.currentTimeMillis() - beginTime) > timeout;
     }
 
+    /**
+     * 代表该 全局事务 开始启动
+     * @throws TransactionException
+     */
     @Override
     public void begin() throws TransactionException {
         this.status = GlobalStatus.Begin;
         this.beginTime = System.currentTimeMillis();
         this.active = true;
+        // 触发监听器
         for (SessionLifecycleListener lifecycleListener : lifecycleListeners) {
             lifecycleListener.onBegin(this);
         }
@@ -209,11 +218,18 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
         lifecycleListeners.remove(sessionLifecycleListener);
     }
 
+    /**
+     * 添加 分事务
+     * @param branchSession the branch session
+     * @throws TransactionException
+     */
     @Override
     public void addBranch(BranchSession branchSession) throws TransactionException {
+        // 触发监听器
         for (SessionLifecycleListener lifecycleListener : lifecycleListeners) {
             lifecycleListener.onAddBranch(this, branchSession);
         }
+        // 设置成完成注册的状态
         branchSession.setStatus(BranchStatus.Registered);
         add(branchSession);
     }
@@ -223,6 +239,7 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
         for (SessionLifecycleListener lifecycleListener : lifecycleListeners) {
             lifecycleListener.onRemoveBranch(this, branchSession);
         }
+        // 移除时要进行解锁  内部会委托 给 LM 对象
         branchSession.unlock();
         remove(branchSession);
     }
@@ -574,10 +591,17 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
         return branchSessions.size() > 0;
     }
 
+    /**
+     * 对session对象进行上锁
+     * @throws TransactionException
+     */
     public void lock() throws TransactionException {
         globalSessionLock.lock();
     }
 
+    /**
+     * 解锁
+     */
     public void unlock() {
         globalSessionLock.unlock();
     }
@@ -600,8 +624,14 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
         }
     }
 
+    /**
+     * session 锁对象
+     */
     private class GlobalSessionLock {
 
+        /**
+         * 内部使用一个重入锁
+         */
         private Lock globalSessionLock = new ReentrantLock();
 
         private static final int GLOBAL_SESSION_LOCK_TIME_OUT_MILLS = 2 * 1000;

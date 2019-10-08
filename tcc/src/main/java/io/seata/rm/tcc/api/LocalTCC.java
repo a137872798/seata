@@ -23,7 +23,7 @@ import java.lang.annotation.Target;
 
 /**
  * Local TCC bean annotation, add on the TCC interface
- *
+ * 本地 TCC 注解???
  * @author zhangsen
  */
 @Retention(RetentionPolicy.RUNTIME)

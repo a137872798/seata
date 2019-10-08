@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
+ * 事务钩子管理器
  * @author guoyao
  * @date 2019/3/4
  */

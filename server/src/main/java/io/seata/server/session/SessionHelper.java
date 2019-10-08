@@ -22,13 +22,22 @@ import io.seata.server.UUIDGenerator;
 
 /**
  * The type Session helper.
- *
+ * helper 对象
  * @author sharajava
  */
 public class SessionHelper {
 
     private SessionHelper() {}
 
+    /**
+     * 基于某个 globalSession 创建一个新的 branchSession 对象
+     * @param globalSession
+     * @param branchType
+     * @param resourceId
+     * @param lockKeys
+     * @param clientId
+     * @return
+     */
     public static BranchSession newBranchByGlobal(GlobalSession globalSession, BranchType branchType, String resourceId, String lockKeys, String clientId) {
         return newBranchByGlobal(globalSession, branchType, resourceId, null, lockKeys, clientId);
     }
@@ -36,15 +45,16 @@ public class SessionHelper {
     /**
      * New branch by global branch session.
      *
-     * @param globalSession the global session
-     * @param branchType    the branch type
-     * @param resourceId    the resource id
-     * @param lockKeys      the lock keys
-     * @param clientId      the client id
+     * @param globalSession the global session  全局事务
+     * @param branchType    the branch type   分事务类型
+     * @param resourceId    the resource id   分事务唯一标识
+     * @param lockKeys      the lock keys    锁住的字段
+     * @param clientId      the client id    对应客户端id
      * @return the branch session
      */
     public static BranchSession newBranchByGlobal(GlobalSession globalSession, BranchType branchType, String resourceId,
             String applicationData, String lockKeys, String clientId) {
+        // 创建分事务对象
         BranchSession branchSession = new BranchSession();
 
         branchSession.setXid(globalSession.getXid());
@@ -61,7 +71,7 @@ public class SessionHelper {
 
     /**
      * End committed.
-     *
+     * 当 commit 完成后执行
      * @param globalSession the global session
      * @throws TransactionException the transaction exception
      */
@@ -72,7 +82,7 @@ public class SessionHelper {
 
     /**
      * End commit failed.
-     *
+     * 当commit 完成后 执行
      * @param globalSession the global session
      * @throws TransactionException the transaction exception
      */

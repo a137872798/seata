@@ -19,13 +19,22 @@ import io.seata.core.model.GlobalStatus;
 
 /**
  * The type Session condition.
- *
+ * 查询session 的条件对象
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /12/13
  */
 public class SessionCondition {
+    /**
+     * 事务id
+     */
     private Long transactionId;
+    /**
+     * 全局事务id
+     */
     private String xid;
+    /**
+     * 全局状态
+     */
     private GlobalStatus status;
     private GlobalStatus[] statuses;
     private long overTimeAliveMills;

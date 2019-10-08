@@ -83,6 +83,7 @@ public class ExecuteTemplate {
         if (sqlRecognizer == null) {
             executor = new PlainExecutor<T, S>(statementProxy, statementCallback);
         } else {
+            // 生成对应的 执行器对象
             switch (sqlRecognizer.getSQLType()) {
                 case INSERT:
                     executor = new InsertExecutor<T, S>(statementProxy, statementCallback, sqlRecognizer);

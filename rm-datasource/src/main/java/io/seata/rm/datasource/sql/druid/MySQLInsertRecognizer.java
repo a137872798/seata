@@ -80,6 +80,10 @@ public class MySQLInsertRecognizer extends BaseRecognizer implements SQLInsertRe
         return sb.toString();
     }
 
+    /**
+     * 获取插入语句
+     * @return
+     */
     @Override
     public List<String> getInsertColumns() {
         List<SQLExpr> columnSQLExprs = ast.getColumns();
@@ -88,6 +92,7 @@ public class MySQLInsertRecognizer extends BaseRecognizer implements SQLInsertRe
             return null;
         }
         List<String> list = new ArrayList<>(columnSQLExprs.size());
+        // 将ast 中所有语句转移到 list中
         for (SQLExpr expr : columnSQLExprs) {
             if (expr instanceof SQLIdentifierExpr) {
                 list.add(((SQLIdentifierExpr)expr).getName());

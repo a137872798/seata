@@ -17,7 +17,7 @@ package io.seata.rm.datasource.sql.struct;
 
 /**
  * Field
- *
+ * 代表表中的某个字段
  * @author sharajava
  */
 public class Field {

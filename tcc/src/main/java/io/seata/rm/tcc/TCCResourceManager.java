@@ -35,13 +35,14 @@ import io.seata.rm.tcc.api.BusinessActionContext;
 
 /**
  * TCC resource manager
- *
+ * TCC 资源管理器
  * @author zhangsen
  */
 public class TCCResourceManager extends AbstractResourceManager {
 
     /**
      * TCC resource cache
+     * 资源缓存对象
      */
     private Map<String, Resource> tccResourceCache = new ConcurrentHashMap<String, Resource>();
 
@@ -60,6 +61,7 @@ public class TCCResourceManager extends AbstractResourceManager {
     public void registerResource(Resource resource) {
         TCCResource tccResource = (TCCResource)resource;
         tccResourceCache.put(tccResource.getResourceId(), tccResource);
+        // 这里是通过client 对象 将 TCC resource 注册到 RM 上
         super.registerResource(tccResource);
     }
 

@@ -20,17 +20,30 @@ import java.util.Map;
 
 /**
  * The type Business action context.
+ * 业务上下文对象
  */
 public class BusinessActionContext implements Serializable {
 
     private static final long serialVersionUID = 6539226288677737991L;
 
+    /**
+     * 全局事务id
+     */
     private String xid;
 
+    /**
+     * 分事务id
+     */
     private String branchId;
 
+    /**
+     * 应该是标记该动作的 action 对应 TCC 中的 CC(cancel 和 confirm)
+     */
     private String actionName;
 
+    /**
+     * 存放自定义数据
+     */
     private Map<String, Object> actionContext;
 
     /**
@@ -41,7 +54,7 @@ public class BusinessActionContext implements Serializable {
 
     /**
      * Instantiates a new Business action context.
-     *
+     * 通过事务id 将事务与上下文关联起来 同时通过传入的 map 对象来存储上下文相关数据
      * @param xid           the xid
      * @param branchId      the branch id
      * @param actionContext the action context
@@ -147,9 +160,9 @@ public class BusinessActionContext implements Serializable {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("[xid:").append(xid)
-            .append(",branch_Id:").append(branchId).append(",action_name:").append(actionName)
-            .append(",action_context:")
-            .append(actionContext).append("]");
+                .append(",branch_Id:").append(branchId).append(",action_name:").append(actionName)
+                .append(",action_context:")
+                .append(actionContext).append("]");
         return sb.toString();
     }
 }

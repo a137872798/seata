@@ -27,7 +27,7 @@ import io.seata.server.event.EventBusManager;
 
 /**
  * Metrics manager for init
- *
+ * 测量管理对象
  * @author zhengyangyong
  */
 public class MetricsManager {
@@ -39,6 +39,9 @@ public class MetricsManager {
         return MetricsManager.SingletonHolder.INSTANCE;
     }
 
+    /**
+     * 注册对象
+     */
     private Registry registry;
 
     public Registry getRegistry() {

@@ -19,14 +19,14 @@ import io.seata.common.exception.FrameworkException;
 
 /**
  * extract remoting bean info
- *
+ * 远程bean 解析器
  * @author zhangsen
  */
 public interface RemotingParser {
 
     /**
      * if it is remoting bean ?
-     *
+     * 判断某个bean 是否是远程 rpc框架中实现的bean
      * @param bean     the bean
      * @param beanName the bean name
      * @return boolean boolean
@@ -36,7 +36,7 @@ public interface RemotingParser {
 
     /**
      * if it is reference bean ?
-     *
+     * 是否是 服务提供者
      * @param bean     the bean
      * @param beanName the bean name
      * @return boolean boolean
@@ -46,7 +46,7 @@ public interface RemotingParser {
 
     /**
      * if it is service bean ?
-     *
+     * 是否是服务消费者
      * @param bean     the bean
      * @param beanName the bean name
      * @return boolean boolean
@@ -56,7 +56,7 @@ public interface RemotingParser {
 
     /**
      * get the remoting bean info
-     *
+     * 获取信息
      * @param bean     the bean
      * @param beanName the bean name
      * @return service desc

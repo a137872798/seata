@@ -17,7 +17,7 @@ package io.seata.rm.tcc.remoting;
 
 /**
  * remoting protocols enum
- *
+ * 协议工具类
  * @author zhangsen
  */
 public class Protocols {

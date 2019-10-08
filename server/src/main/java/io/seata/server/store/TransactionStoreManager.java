@@ -22,14 +22,14 @@ import java.util.List;
 
 /**
  * The interface Transaction store manager.
- *
+ * 事务存储管理器
  * @author jimin.jm @alibaba-inc.com
  */
 public interface TransactionStoreManager {
 
     /**
      * Write session boolean.
-     *
+     * 写入某个session
      * @param logOperation the log operation
      * @param session      the session
      * @return the boolean
@@ -39,7 +39,7 @@ public interface TransactionStoreManager {
 
     /**
      * Read global session global session.
-     *
+     * 通过全局事务id 读取某个事务
      * @param xid the xid
      * @return the global session
      */
@@ -47,7 +47,7 @@ public interface TransactionStoreManager {
 
     /**
      * Read session by status list.
-     *
+     * 根据条件对象查询session
      * @param sessionCondition the session condition
      * @return the list
      */

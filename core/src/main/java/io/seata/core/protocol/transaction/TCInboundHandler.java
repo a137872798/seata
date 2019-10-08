@@ -19,7 +19,7 @@ import io.seata.core.rpc.RpcContext;
 
 /**
  * The interface Tc inbound handler.
- *
+ * 处理针对 TC 的请求 并返回响应结果 可以看到server 都是处理开启全局事务 回滚等操作
  * @author sharajava
  */
 public interface TCInboundHandler {

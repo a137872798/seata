@@ -17,7 +17,7 @@ package io.seata.server.store;
 
 /**
  * The interface Session storable.
- *
+ * 代表可存储对象 这里是 编码后存储的 而不是直接保存原数据
  * @author jimin.jm @alibaba-inc.com
  */
 public interface SessionStorable {

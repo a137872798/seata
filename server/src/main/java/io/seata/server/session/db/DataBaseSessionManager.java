@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The Data base session manager.
- *
+ * 基于DB 的sessionManager
  * @author zhangsen
  * @data 2019 /4/4
  */
@@ -78,11 +78,13 @@ public class DataBaseSessionManager extends AbstractSessionManager
 
     @Override
     public void init() {
+        // 这里又初始化了 TSM 对象
         transactionStoreManager = EnhancedServiceLoader.load(TransactionStoreManager.class, StoreMode.DB.name());
     }
 
     @Override
     public void addGlobalSession(GlobalSession session) throws TransactionException {
+        // 如果指定了 taskName 代表是更新操作
         if (StringUtils.isBlank(taskName)) {
             boolean ret = transactionStoreManager.writeSession(LogOperation.GLOBAL_ADD, session);
             if (!ret) {
@@ -96,6 +98,12 @@ public class DataBaseSessionManager extends AbstractSessionManager
         }
     }
 
+    /**
+     * 更新操作必须指定 taskName
+     * @param session the session
+     * @param status  the status
+     * @throws TransactionException
+     */
     @Override
     public void updateGlobalSessionStatus(GlobalSession session, GlobalStatus status) throws TransactionException {
         if (StringUtils.isNotBlank(taskName)) {

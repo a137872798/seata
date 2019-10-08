@@ -22,7 +22,7 @@ import io.seata.core.model.Resource;
 
 /**
  * The type Tcc resource.
- *
+ * TCC 资源 用于描述 TCC 信息的
  * @author zhangsen
  */
 public class TCCResource implements Resource {

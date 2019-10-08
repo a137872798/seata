@@ -30,7 +30,7 @@ public class GlobalLockTemplate<T> {
 
     /**
      * Execute object.
-     *
+     * 执行回调函数
      * @param business the business
      * @return the object
      * @throws Exception
@@ -40,15 +40,14 @@ public class GlobalLockTemplate<T> {
         Object rs = null;
         try {
             // add global lock declare
-            // 设置需要全局锁的标识  也就是 “TX_LOCK”
+            // 绑定全局事务标识
             RootContext.bindGlobalLockFlag();
 
             // Do Your Business
-            // 执行回调 也就是 Statement.executeQuery()...
             rs = business.call();
         } finally {
             //clean the global lock declare
-            // 清除标识
+            // 接触绑定
             RootContext.unbindGlobalLockFlag();
         }
 

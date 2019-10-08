@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Default global transaction.
- *
+ * 全局事务对象
  * @author sharajava
  */
 public class DefaultGlobalTransaction implements GlobalTransaction {
@@ -37,16 +37,29 @@ public class DefaultGlobalTransaction implements GlobalTransaction {
 
     private static final String DEFAULT_GLOBAL_TX_NAME = "default";
 
+    /**
+     * TM 对象
+     */
     private TransactionManager transactionManager;
 
+    /**
+     * 全局事务id
+     */
     private String xid;
 
+    /**
+     * 全局事务状态
+     */
     private GlobalStatus status;
 
+    /**
+     * 代表发起者还是参与者
+     */
     private GlobalTransactionRole role;
 
     /**
      * Instantiates a new Default global transaction.
+     * 没有 xid 代表创建该对象的是全局事务的发起者
      */
     DefaultGlobalTransaction() {
         this(null, GlobalStatus.UnKnown, GlobalTransactionRole.Launcher);

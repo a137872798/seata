@@ -25,7 +25,7 @@ import java.lang.annotation.Target;
  * <p>
  * add this annotation on the parameters of the try method, and the parameters will be passed to  the
  * BusinessActivityContext
- *
+ * TCC 参数对象  需要通过 Context???
  * @author zhangsen
  */
 @Retention(RetentionPolicy.RUNTIME)
@@ -34,28 +34,28 @@ public @interface BusinessActionContextParameter {
 
     /**
      * parameter's name
-     *
+     * 参数名
      * @return the string
      */
     String paramName() default "";
 
     /**
      * if it is a sharding param ?
-     *
+     * 是否是共享参数
      * @return boolean boolean
      */
     boolean isShardingParam() default false;
 
     /**
      * Specify the index of the parameter in the List
-     *
+     * 该参数下标
      * @return int int
      */
     int index() default -1;
 
     /**
      * if get the parameter from the property of the object ?
-     *
+     * 是否该参数是从 某个object 的 属性中获取的
      * @return boolean boolean
      */
     boolean isParamInProperty() default false;

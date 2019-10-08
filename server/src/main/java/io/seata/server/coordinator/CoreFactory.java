@@ -17,7 +17,7 @@ package io.seata.server.coordinator;
 
 /**
  * The type Core factory.
- *
+ * 核心工厂
  * @author sharajava
  */
 public class CoreFactory {

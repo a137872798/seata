@@ -38,16 +38,18 @@ public class TransactionalTemplate {
 
     /**
      * Execute object.
-     *
+     * 按照模板来执行事务
      * @param business the business
      * @return the object
      * @throws TransactionalExecutor.ExecutionException the execution exception
      */
     public Object execute(TransactionalExecutor business) throws Throwable {
         // 1. get or create a transaction
+        // 创建全局事务
         GlobalTransaction tx = GlobalTransactionContext.getCurrentOrCreate();
 
         // 1.1 get transactionInfo
+        // 获取全局事务信息
         TransactionInfo txInfo = business.getTransactionInfo();
         if (txInfo == null) {
             throw new ShouldNeverHappenException("transactionInfo does not exist");
@@ -55,34 +57,48 @@ public class TransactionalTemplate {
         try {
 
             // 2. begin transaction
+            // 开始执行事务
             beginTransaction(txInfo, tx);
 
             Object rs = null;
             try {
 
                 // Do Your Business
+                // 执行业务逻辑
                 rs = business.execute();
 
             } catch (Throwable ex) {
 
                 // 3.the needed business exception to rollback.
+                // 当执行事务遇到异常时触发
                 completeTransactionAfterThrowing(txInfo,tx,ex);
                 throw ex;
             }
 
             // 4. everything is fine, commit.
+            // 提交事务
             commitTransaction(tx);
 
             return rs;
         } finally {
             //5. clear
+            // 触发结束任务
             triggerAfterCompletion();
+            // 做清理工作
             cleanUp();
         }
     }
 
+    /**
+     * 遇到异常时
+     * @param txInfo
+     * @param tx
+     * @param ex
+     * @throws TransactionalExecutor.ExecutionException
+     */
     private void completeTransactionAfterThrowing(TransactionInfo txInfo, GlobalTransaction tx, Throwable ex) throws TransactionalExecutor.ExecutionException {
         //roll back
+        // 代表遇到该异常允许进行回滚
         if (txInfo != null && txInfo.rollbackOn(ex)) {
             try {
                 rollbackTransaction(tx, ex);
@@ -93,14 +109,22 @@ public class TransactionalTemplate {
             }
         } else {
             // not roll back on this exception, so commit
+            // 不处理还是选择 提交
             commitTransaction(tx);
         }
     }
 
+    /**
+     * 提交事务
+     * @param tx
+     * @throws TransactionalExecutor.ExecutionException
+     */
     private void commitTransaction(GlobalTransaction tx) throws TransactionalExecutor.ExecutionException {
         try {
+            // 提交前钩子
             triggerBeforeCommit();
             tx.commit();
+            // 提交后钩子
             triggerAfterCommit();
         } catch (TransactionException txe) {
             // 4.1 Failed to commit
@@ -109,6 +133,13 @@ public class TransactionalTemplate {
         }
     }
 
+    /**
+     * 回滚关联的方法
+     * @param tx
+     * @param ex
+     * @throws TransactionException
+     * @throws TransactionalExecutor.ExecutionException
+     */
     private void rollbackTransaction(GlobalTransaction tx, Throwable ex) throws TransactionException, TransactionalExecutor.ExecutionException {
         triggerBeforeRollback();
         tx.rollback();

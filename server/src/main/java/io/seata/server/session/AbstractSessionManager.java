@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Abstract session manager.
+ * SM 骨架类
  */
 public abstract class AbstractSessionManager implements SessionManager, SessionLifecycleListener {
 
@@ -39,11 +40,13 @@ public abstract class AbstractSessionManager implements SessionManager, SessionL
 
     /**
      * The Transaction store manager.
+     * 关联了 事务存储管理器  该 对象负责 session 的读取和写入逻辑
      */
     protected TransactionStoreManager transactionStoreManager;
 
     /**
      * The Name.
+     * SM 对应的名字
      */
     protected String name;
 
@@ -62,11 +65,17 @@ public abstract class AbstractSessionManager implements SessionManager, SessionL
         this.name = name;
     }
 
+    /**
+     * 添加某个session
+     * @param session the session
+     * @throws TransactionException
+     */
     @Override
     public void addGlobalSession(GlobalSession session) throws TransactionException {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("MANAGER[" + name + "] SESSION[" + session + "] " + LogOperation.GLOBAL_ADD);
         }
+        // 写入session 对应的 LogOperation为 Global.add
         writeSession(LogOperation.GLOBAL_ADD, session);
     }
 
@@ -148,7 +157,14 @@ public abstract class AbstractSessionManager implements SessionManager, SessionL
         removeGlobalSession(globalSession);
     }
 
+    /**
+     * 通过传入的操作执行执行对应的逻辑
+     * @param logOperation
+     * @param sessionStorable
+     * @throws TransactionException
+     */
     private void writeSession(LogOperation logOperation, SessionStorable sessionStorable) throws TransactionException {
+        // 如果无法写入 抛出异常 也就是 写入逻辑本身是委托给TSM 对象的
         if (!transactionStoreManager.writeSession(logOperation, sessionStorable)) {
             if (LogOperation.GLOBAL_ADD.equals(logOperation)) {
                 throw new GlobalTransactionException(TransactionExceptionCode.FailedWriteSession, "Fail to store global session");

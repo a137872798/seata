@@ -23,21 +23,21 @@ import io.seata.server.session.GlobalSession;
 
 /**
  * The interface Core.
- *
+ * 代表 服务层的抽象 包含了TM 对象 和 返回数据到RM 的 输出处理对象
  * @author sharajava
  */
 public interface Core extends TransactionManager, ResourceManagerOutbound {
 
     /**
      * Sets resource manager inbound.
-     *
+     * 设置 从RM 过来的数据的处理器
      * @param resourceManagerInbound the resource manager inbound
      */
     void setResourceManagerInbound(ResourceManagerInbound resourceManagerInbound);
 
     /**
      * Do global commit.
-     *
+     * 执行全局事务
      * @param globalSession the global session
      * @param retrying      the retrying
      * @throws TransactionException the transaction exception
@@ -46,7 +46,7 @@ public interface Core extends TransactionManager, ResourceManagerOutbound {
 
     /**
      * Do global rollback.
-     *
+     * 执行全局回滚
      * @param globalSession the global session
      * @param retrying      the retrying
      * @throws TransactionException the transaction exception

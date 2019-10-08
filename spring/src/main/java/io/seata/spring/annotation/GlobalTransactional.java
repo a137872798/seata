@@ -25,6 +25,7 @@ import java.lang.annotation.Target;
 
 /**
  * The interface Global transactional.
+ * 代表开启全局事务
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
@@ -40,13 +41,14 @@ public @interface GlobalTransactional {
 
     /**
      * Given name of the global transaction instance.
-     *
+     * 全局实例事务的 name
      * @return Given name.
      */
     String name() default "";
 
     /**
      * roll back for the Class
+     * 针对哪些异常会进行回滚
      * @return
      */
     Class<? extends Throwable>[] rollbackFor() default {};
@@ -59,6 +61,7 @@ public @interface GlobalTransactional {
 
     /**
      * not roll back for the Class
+     * 哪些异常不进行回滚
      * @return
      */
     Class<? extends Throwable>[] noRollbackFor() default {};

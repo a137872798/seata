@@ -17,6 +17,7 @@ package io.seata.tm.api.transaction;
 
 
 /**
+ * 干嘛用的这个 ???
  * @author guoyao
  * @date 2019/4/17
  */

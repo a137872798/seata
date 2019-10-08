@@ -21,7 +21,7 @@ import io.seata.rm.datasource.StatementProxy;
 
 /**
  * The type Plain executor.
- *
+ * 简单的 执行器
  * @author sharajava
  *
  * @param <T> the type parameter
@@ -29,8 +29,14 @@ import io.seata.rm.datasource.StatementProxy;
  */
 public class PlainExecutor<T, S extends Statement> implements Executor {
 
+    /**
+     * 会话代理对象
+     */
     private StatementProxy<S> statementProxy;
 
+    /**
+     * call 中封装了 statement 的 执行逻辑
+     */
     private StatementCallback<T, S> statementCallback;
 
     /**

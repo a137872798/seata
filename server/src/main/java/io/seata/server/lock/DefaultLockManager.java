@@ -32,7 +32,7 @@ import io.seata.server.session.GlobalSession;
 
 /**
  * The type Default lock manager.
- *
+ * 默认LM
  * @author zhangsen
  * @data 2019 -05-15
  */
@@ -45,6 +45,12 @@ public class DefaultLockManager extends AbstractLockManager {
      */
     protected static final Configuration CONFIG = ConfigurationFactory.getInstance();
 
+    /**
+     * 尝试通过分事务获取锁对象
+     * @param branchSession the branch session
+     * @return
+     * @throws TransactionException
+     */
     @Override
     public boolean acquireLock(BranchSession branchSession) throws TransactionException {
         if (branchSession == null) {
@@ -56,6 +62,7 @@ public class DefaultLockManager extends AbstractLockManager {
             return true;
         }
         //get locks of branch
+        // 生成锁 实体
         List<RowLock> locks = collectRowLocks(branchSession);
         if (CollectionUtils.isEmpty(locks)) {
             //no lock
@@ -69,6 +76,7 @@ public class DefaultLockManager extends AbstractLockManager {
         if (branchSession == null) {
             throw new IllegalArgumentException("branchSession can't be null for memory/file locker.");
         }
+        // 获取锁实体
         List<RowLock> locks = collectRowLocks(branchSession);
         try {
             return this.doReleaseLock(locks, branchSession);
@@ -78,6 +86,12 @@ public class DefaultLockManager extends AbstractLockManager {
         }
     }
 
+    /**
+     * 批量释放锁
+     * @param globalSession the global session
+     * @return
+     * @throws TransactionException
+     */
     @Override
     public boolean releaseGlobalSessionLock(GlobalSession globalSession) throws TransactionException {
         ArrayList<BranchSession> branchSessions = globalSession.getBranchSessions();

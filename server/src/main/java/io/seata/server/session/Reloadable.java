@@ -17,7 +17,7 @@ package io.seata.server.session;
 
 /**
  * Service contains states which can be reloaded.
- *
+ * 可重新加载对象
  * @author sharajava
  */
 public interface Reloadable {

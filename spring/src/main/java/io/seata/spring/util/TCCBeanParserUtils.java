@@ -33,7 +33,7 @@ public class TCCBeanParserUtils {
 
     /**
      * is auto proxy TCC bean
-     *
+     * 判断某对象是否是 TCC 的代理对象
      * @param bean               the bean
      * @param beanName           the bean name
      * @param applicationContext the application context
@@ -43,10 +43,14 @@ public class TCCBeanParserUtils {
         RemotingDesc remotingDesc = null;
         boolean isRemotingBean = parserRemotingServiceInfo(bean, beanName);
         //is remoting bean
+        // 如果是 rpc框架中的远程bean 对象
         if (isRemotingBean) {
+            // 解析生成描述信息
             remotingDesc = DefaultRemotingParser.get().getRemotingBeanDesc(beanName);
+            // 确保协议是 in_jvm  这个协议代表该服务是本地服务 也就是没有经过远程调用
             if (remotingDesc != null && remotingDesc.getProtocol() == Protocols.IN_JVM) {
                 //LocalTCC
+                // 判断是否是 TCC
                 return isTccProxyTargetBean(remotingDesc);
             } else {
                 // sofa:reference / dubbo:reference, factory bean
@@ -98,7 +102,7 @@ public class TCCBeanParserUtils {
 
     /**
      * is TCC proxy-bean/target-bean: LocalTCC , the proxy bean of sofa:reference/dubbo:reference
-     *
+     * 判断是否是 tcc 代理对象
      * @param remotingDesc the remoting desc
      * @return boolean boolean
      */
@@ -108,10 +112,14 @@ public class TCCBeanParserUtils {
         }
         //check if it is TCC bean
         boolean isTccClazz = false;
+        // 获取接口信息
         Class<?> tccInterfaceClazz = remotingDesc.getInterfaceClass();
         Method[] methods = tccInterfaceClazz.getMethods();
+        // 代表二阶段动作
         TwoPhaseBusinessAction twoPhaseBusinessAction = null;
+        // 获取所有方法
         for (Method method : methods) {
+            // 如果包含二阶段注解就代表是 TCC 事务
             twoPhaseBusinessAction = method.getAnnotation(TwoPhaseBusinessAction.class);
             if (twoPhaseBusinessAction != null) {
                 isTccClazz = true;
@@ -133,7 +141,7 @@ public class TCCBeanParserUtils {
 
     /**
      * get remoting bean info: sofa:service、sofa:reference、dubbo:reference、dubbo:service
-     *
+     * 解析 bean 是否是  sofa:service、sofa:reference、dubbo:reference、dubbo:service 这样就代表该bean 是远程对象
      * @param bean     the bean
      * @param beanName the bean name
      * @return if sofa:service、sofa:reference、dubbo:reference、dubbo:service return true，else return false

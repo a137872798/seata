@@ -19,7 +19,7 @@ import io.seata.core.exception.TransactionException;
 
 /**
  * The interface Lockable.
- *
+ * 代表可上锁对象
  * @author sharajava
  */
 public interface Lockable {

@@ -33,7 +33,7 @@ import org.apache.commons.lang.StringUtils;
 
 /**
  * The type Delete executor.
- *
+ * 删除执行器 增强了 DML 执行器
  * @author sharajava
  *
  * @param <T> the type parameter
@@ -43,7 +43,7 @@ public class DeleteExecutor<T, S extends Statement> extends AbstractDMLBaseExecu
 
     /**
      * Instantiates a new Delete executor.
-     *
+     * 实例化一个 delete 执行器
      * @param statementProxy    the statement proxy
      * @param statementCallback the statement callback
      * @param sqlRecognizer     the sql recognizer
@@ -53,30 +53,56 @@ public class DeleteExecutor<T, S extends Statement> extends AbstractDMLBaseExecu
         super(statementProxy, statementCallback, sqlRecognizer);
     }
 
+    /**
+     * 生成快照对象
+     * @return
+     * @throws SQLException
+     */
     @Override
     protected TableRecords beforeImage() throws SQLException {
         SQLDeleteRecognizer visitor = (SQLDeleteRecognizer) sqlRecognizer;
+        // 通过connection 去查询表的元数据信息
         TableMeta tmeta = getTableMeta(visitor.getTableName());
+        // 生成一个参数列表对象
         ArrayList<List<Object>> paramAppenderList = new ArrayList<>();
+        // 构建一个 锁住所有col 的语句
         String selectSQL = buildBeforeImageSQL(visitor, tmeta, paramAppenderList);
+        // 根据查询结果 设置 tableRecord 对象 并作为beforeImage
         return buildTableRecords(tmeta, selectSQL, paramAppenderList);
     }
 
+    /**
+     * 构建before 对象
+     * @param visitor
+     * @param tableMeta
+     * @param paramAppenderList
+     * @return
+     */
     private String buildBeforeImageSQL(SQLDeleteRecognizer visitor, TableMeta tableMeta, ArrayList<List<Object>> paramAppenderList) {
+        // 获取 检查对象
         KeywordChecker keywordChecker = KeywordCheckerFactory.getKeywordChecker(JdbcConstants.MYSQL);
+        // 构建 where 条件语句
         String whereCondition = buildWhereCondition(visitor, paramAppenderList);
+        // 生成一个 写锁语句
         StringBuilder suffix = new StringBuilder(" FROM " + keywordChecker.checkAndReplace(getFromTableInSQL()));
         if (StringUtils.isNotBlank(whereCondition)) {
             suffix.append(" WHERE " + whereCondition);
         }
         suffix.append(" FOR UPDATE");
         StringJoiner selectSQLAppender = new StringJoiner(", ", "SELECT ", suffix.toString());
+        // 这里吧所有col 都锁住了???
         for (String column : tableMeta.getAllColumns().keySet()) {
             selectSQLAppender.add(getColumnNameInSQL(keywordChecker.checkAndReplace(column)));
         }
         return selectSQLAppender.toString();
     }
 
+    /**
+     * 返回一个空的image 对象
+     * @param beforeImage the before image
+     * @return
+     * @throws SQLException
+     */
     @Override
     protected TableRecords afterImage(TableRecords beforeImage) throws SQLException {
         return TableRecords.empty(getTableMeta());

@@ -32,7 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The type Lock manager factory.
- *
+ * 锁工厂对象
  * @author sharajava
  */
 public class LockerFactory {
@@ -73,21 +73,25 @@ public class LockerFactory {
 
     /**
      * Get lock manager.
-     *
+     * 使用传入的 session 对象 获取 锁对象
      * @param branchSession the branch session
      * @return the lock manager
      */
     public static synchronized final Locker get(BranchSession branchSession) {
         String storeMode = CONFIG.getConfig(ConfigurationKeys.STORE_MODE);
+        // 如果是db 类型
         if (StoreMode.DB.name().equalsIgnoreCase(storeMode)) {
+            // 获取对应的 locker 对象
             if (lockerMap.get(storeMode) != null) {
                 return lockerMap.get(storeMode);
             }
             //init dataSource
             String datasourceType = CONFIG.getConfig(ConfigurationKeys.STORE_DB_DATASOURCE_TYPE);
+            // 获取数据源生成对象
             DataSourceGenerator dataSourceGenerator = EnhancedServiceLoader.load(DataSourceGenerator.class,
                 datasourceType);
             DataSource logStoreDataSource = dataSourceGenerator.generateDataSource();
+            // 获取锁对象
             locker = EnhancedServiceLoader.load(Locker.class, storeMode, new Class[] {DataSource.class},
                 new Object[] {logStoreDataSource});
             lockerMap.put(storeMode, locker);

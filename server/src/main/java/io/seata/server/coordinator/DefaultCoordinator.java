@@ -79,6 +79,7 @@ import static io.seata.core.exception.TransactionExceptionCode.FailedToSendBranc
 
 /**
  * The type Default coordinator.
+ * 默认的候选者
  */
 public class DefaultCoordinator extends AbstractTCInboundHandler
     implements TransactionMessageHandler, ResourceManagerInbound, Disposable {
@@ -144,13 +145,15 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
 
     private ServerMessageSender messageSender;
 
+    /**
+     * 内部包含一个 DefaultCore 对象
+     */
     private Core core = CoreFactory.get();
 
     private EventBus eventBus = EventBusManager.get();
 
     /**
      * Instantiates a new Default coordinator.
-     *
      * @param messageSender the message sender
      */
     public DefaultCoordinator(ServerMessageSender messageSender) {
@@ -158,13 +161,28 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
         core.setResourceManagerInbound(this);
     }
 
+    /**
+     * 代表开启一个全局事务
+     * @param request    the request
+     * @param response   the response
+     * @param rpcContext the rpc context
+     * @throws TransactionException
+     */
     @Override
     protected void doGlobalBegin(GlobalBeginRequest request, GlobalBeginResponse response, RpcContext rpcContext)
         throws TransactionException {
+        // 使用core 开启一个 事务 并将返回的 xid 设置到 response 中
         response.setXid(core.begin(rpcContext.getApplicationId(), rpcContext.getTransactionServiceGroup(),
             request.getTransactionName(), request.getTimeout()));
     }
 
+    /**
+     * 处理 事务提交
+     * @param request    the request
+     * @param response   the response
+     * @param rpcContext the rpc context
+     * @throws TransactionException
+     */
     @Override
     protected void doGlobalCommit(GlobalCommitRequest request, GlobalCommitResponse response, RpcContext rpcContext)
         throws TransactionException {
@@ -210,6 +228,18 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
             request.getXid(), request.getLockKey()));
     }
 
+    // 以上方法实质上都是通过 委托给core 来执行的
+
+    /**
+     * 某个分支事务 触发提交
+     * @param branchType      the branch type
+     * @param xid             Transaction id.
+     * @param branchId        Branch id.
+     * @param resourceId      Resource id.
+     * @param applicationData Application data bind with this branch.
+     * @return
+     * @throws TransactionException
+     */
     @Override
     public BranchStatus branchCommit(BranchType branchType, String xid, long branchId, String resourceId,
                                      String applicationData)
@@ -228,6 +258,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
             }
             BranchSession branchSession = globalSession.getBranch(branchId);
 
+            // 往服务端发送请求
             BranchCommitResponse response = (BranchCommitResponse)messageSender.sendSyncRequest(resourceId,
                 branchSession.getClientId(), request);
             return response.getBranchStatus();
@@ -236,6 +267,16 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
         }
     }
 
+    /**
+     * 触发回滚
+     * @param branchType      the branch type
+     * @param xid             Transaction id.
+     * @param branchId        Branch id.
+     * @param resourceId      Resource id.
+     * @param applicationData Application data bind with this branch.
+     * @return
+     * @throws TransactionException
+     */
     @Override
     public BranchStatus branchRollback(BranchType branchType, String xid, long branchId, String resourceId,
                                        String applicationData)

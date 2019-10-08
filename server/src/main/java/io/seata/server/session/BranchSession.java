@@ -33,15 +33,21 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Branch session.
- *
+ * 分事务对象
  * @author sharajava
  */
 public class BranchSession implements Lockable, Comparable<BranchSession>, SessionStorable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BranchSession.class);
 
+    /**
+     * 默认允许的 BranchSession 大小
+     */
     private static final int MAX_BRANCH_SESSION_SIZE = StoreConfig.getMaxBranchSessionSize();
 
+    /**
+     * 线程绑定的 nio对象  指定初始化方法
+     */
     private static ThreadLocal<ByteBuffer> byteBufferThreadLocal = ThreadLocal.withInitial(() -> ByteBuffer.allocate(
         MAX_BRANCH_SESSION_SIZE));
 
@@ -65,6 +71,9 @@ public class BranchSession implements Lockable, Comparable<BranchSession>, Sessi
 
     private String applicationData;
 
+    /**
+     * 锁对象
+     */
     private ConcurrentHashMap<Map<String, Long>, Set<String>> lockHolder
         = new ConcurrentHashMap<>();
 
@@ -267,6 +276,11 @@ public class BranchSession implements Lockable, Comparable<BranchSession>, Sessi
         return lockHolder;
     }
 
+    /**
+     * 委托给 LF 对象来进行加解锁
+     * @return
+     * @throws TransactionException
+     */
     @Override
     public boolean lock() throws TransactionException {
         return LockerFactory.getLockManager().acquireLock(this);

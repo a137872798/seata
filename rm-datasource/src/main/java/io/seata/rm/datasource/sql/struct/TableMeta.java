@@ -167,7 +167,7 @@ public class TableMeta {
 
     /**
      * Contains pk boolean.
-     *
+     * 判断传入的col 中是否包含了pk 字段
      * @param cols the cols
      * @return the boolean
      */
@@ -176,6 +176,7 @@ public class TableMeta {
             return false;
         }
 
+        // 获取所有主键的name
         List<String> pk = getPrimaryKeyOnlyName();
         if (pk.isEmpty()) {
             return false;

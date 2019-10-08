@@ -19,6 +19,7 @@ import java.io.Serializable;
 import java.util.Set;
 
 /**
+ * 事务信息
  * @author guoyao
  * @date 2019/4/17
  */
@@ -30,6 +31,9 @@ public final class TransactionInfo implements Serializable {
 
     private String name;
 
+    /**
+     * 关联的回滚规则
+     */
     private Set<RollbackRule> rollbackRules;
 
     public int getTimeOut() {
@@ -56,6 +60,11 @@ public final class TransactionInfo implements Serializable {
         this.rollbackRules = rollbackRules;
     }
 
+    /**
+     * 判断某个异常是否允许进行回滚
+     * @param ex
+     * @return
+     */
     public boolean rollbackOn(Throwable ex) {
 
         RollbackRule winner = null;

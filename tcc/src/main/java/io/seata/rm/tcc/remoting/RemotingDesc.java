@@ -17,7 +17,7 @@ package io.seata.rm.tcc.remoting;
 
 /**
  * remoting bean info
- *
+ * 远程  bean 描述信息对象
  * @author zhangsen
  */
 public class RemotingDesc {

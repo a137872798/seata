@@ -36,7 +36,7 @@ import java.util.Map;
 
 /**
  * Handler the TCC Participant Aspect : Setting Context, Creating Branch Record
- *
+ * TCC 拦截处理器对象
  * @author zhangsen
  */
 public class ActionInterceptorHandler {

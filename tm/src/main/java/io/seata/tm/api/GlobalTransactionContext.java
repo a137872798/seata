@@ -21,7 +21,7 @@ import io.seata.core.model.GlobalStatus;
 
 /**
  * GlobalTransaction API
- *
+ * 全局事务上下文
  * @author sharajava
  */
 public class GlobalTransactionContext {
@@ -41,7 +41,7 @@ public class GlobalTransactionContext {
 
     /**
      * Get GlobalTransaction instance bind on current thread.
-     *
+     * 获取当前线程绑定的 上下文对象
      * @return null if no transaction context there.
      */
     private static GlobalTransaction getCurrent() {
@@ -54,12 +54,13 @@ public class GlobalTransactionContext {
 
     /**
      * Get GlobalTransaction instance bind on current thread. Create a new on if no existing there.
-     *
+     * 获取当前线程绑定的全局事务对象
      * @return new context if no existing there.
      */
     public static GlobalTransaction getCurrentOrCreate() {
         GlobalTransaction tx = getCurrent();
         if (tx == null) {
+            // 如果当前事务id 还没有创建 那么全局事务还没有生成 这里就要创建一个新的 全局事务对象
             return createNew();
         }
         return tx;
