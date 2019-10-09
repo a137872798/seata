@@ -40,7 +40,7 @@ public class RootContext {
 
     /**
      * Gets xid.
-     *
+     * 获取当前线程绑定的 xid
      * @return the xid
      */
     public static String getXID() {
@@ -61,6 +61,7 @@ public class RootContext {
 
     /**
      * declare local transactions will use global lock check for update/delete/insert/selectForUpdate SQL
+     * 绑定 flag 信息 代表需要上锁
      */
     public static void bindGlobalLockFlag() {
 
@@ -74,7 +75,7 @@ public class RootContext {
 
     /**
      * Unbind string.
-     *
+     * 解除绑定同时返回 事务id
      * @return the string
      */
     public static String unbind() {
@@ -94,7 +95,7 @@ public class RootContext {
 
     /**
      * In global transaction boolean.
-     *
+     * 判断当前线程是否处在一个全局事务中
      * @return the boolean
      */
     public static boolean inGlobalTransaction() {

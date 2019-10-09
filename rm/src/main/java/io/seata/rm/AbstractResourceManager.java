@@ -130,6 +130,10 @@ public abstract class AbstractResourceManager implements ResourceManager {
         throw new NotSupportYetException("unregister a resource");
     }
 
+    /**
+     * 将资源注册到 RMClient 上
+     * @param resource The resource to be managed.
+     */
     @Override
     public void registerResource(Resource resource) {
         RmRpcClient.getInstance().registerResource(resource.getResourceGroupId(), resource.getResourceId());

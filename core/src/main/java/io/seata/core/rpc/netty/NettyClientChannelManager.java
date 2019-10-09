@@ -35,7 +35,8 @@ import java.util.function.Function;
 
 /**
  * Netty client pool manager.
- * 客户端连接管理
+ * 客户端连接管理   这里要注意 每个 Client 有自己的 ClientChannelManager 对象 比如 RM/TM 分别有自己的manager 这样他们在获取指定server的 channel 时就可以分别注册了
+ * 如果共用一个channel 那么就只会触发一次register
  * @author jimin.jm @alibaba-inc.com
  * @author zhaojun
  */
@@ -81,7 +82,7 @@ class NettyClientChannelManager {
         // 使用池化工厂进行初始化
         nettyClientKeyPool = new GenericKeyedObjectPool<>(keyPoolableFactory);
         nettyClientKeyPool.setConfig(getNettyPoolConfig(clientConfig));
-        // 使用服务端地址 创建poolKey 的函数
+        // 通过地址生成 poolkey 的函数 分别由 RM/TM 实现
         this.poolKeyFunction = poolKeyFunction;
     }
     
@@ -107,7 +108,7 @@ class NettyClientChannelManager {
     
     /**
      * Acquire netty client channel connected to remote server.
-     * 尝试获取 channel
+     * 尝试获取 channel  如果没有获取到 可能是连接失效 或者还未连接 这时就要构建连接
      * @param serverAddress server address
      * @return netty channel
      */
@@ -115,7 +116,7 @@ class NettyClientChannelManager {
         // 首先从 池中获取
         Channel channelToServer = channels.get(serverAddress);
         if (channelToServer != null) {
-            // 确保channel 存活
+            // 确保channel 存活  失活状态会将channel 从channels中移除
             channelToServer = getExistAliveChannel(channelToServer, serverAddress);
             if (null != channelToServer) {
                 return channelToServer;
@@ -124,9 +125,10 @@ class NettyClientChannelManager {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("will connect to " + serverAddress);
         }
-        // 如果channel 不存在 就创建一个新连接
+        // 这里为地址设置锁 确保线程安全
         channelLocks.putIfAbsent(serverAddress, new Object());
         synchronized (channelLocks.get(serverAddress)) {
+            // 进行重连 并返回channel
             return doConnect(serverAddress);
         }
     }
@@ -134,19 +136,23 @@ class NettyClientChannelManager {
     /**
      * Release channel to pool if necessary.
      * 归还某个 channel 到 pool中
-     * @param channel channel
-     * @param serverAddress server address
+     * 首先 Client 对象本身有个定时任务 会检测channel 是否可用 (见 reconnect() 方法 发现某个channel 属于失活状态后就会调用该方法释放channel 实际上就是归还到pool中)
+     * @param channel channel  对应的channel 对象
+     * @param serverAddress server address   对应连接的服务器地址
      */
     void releaseChannel(Channel channel, String serverAddress) {
         if (null == channel || null == serverAddress) { return; }
         try {
+            // 看来以 服务器地址为单位设置锁
             synchronized (channelLocks.get(serverAddress)) {
-                // 首先确保没有连接了 才进行归还
+                // 通过reconnect 方法进入到这里时  channel 本身就是从channels 中取出的 所以默认满足第二种情况 在归还前还会将channel 从channels 中移除
+
                 Channel ch = channels.get(serverAddress);
                 if (null == ch) {
                     nettyClientKeyPool.returnObject(poolKeyMap.get(serverAddress), channel);
                     return;
                 }
+                // 如果pool 中已经有channel了 且是同一个channel
                 if (ch.compareTo(channel) == 0) {
                     if (LOGGER.isInfoEnabled()) {
                         LOGGER.info("return to pool, rm channel:" + channel);
@@ -154,6 +160,7 @@ class NettyClientChannelManager {
                     // 这里头也会调用 returnObject 不过还会同时从 channels 中移除该channel
                     destroyChannel(serverAddress, channel);
                 } else {
+                    // 代表存在channel 而不相同 还是会归还
                     nettyClientKeyPool.returnObject(poolKeyMap.get(serverAddress), channel);
                 }
             }
@@ -182,13 +189,13 @@ class NettyClientChannelManager {
     
     /**
      * Reconnect to remote server of current transaction service group.
-     * 重新连接到某个 transactionGroup
+     * 重新连接到某个 transactionGroup对应的TC 对象
      * @param transactionServiceGroup transaction service group
      */
     void reconnect(String transactionServiceGroup) {
         List<String> availList = null;
         try {
-            // 通过注册中心寻找候选list
+            // 通过注册中心寻找候选list  那么 服务器本身就是以 事务组作为key 来进行注册的
             availList = getAvailServerList(transactionServiceGroup);
         } catch (Exception exx) {
             LOGGER.error("Failed to get available servers: {}", exx.getMessage());
@@ -236,6 +243,7 @@ class NettyClientChannelManager {
      * @return
      */
     private Channel doConnect(String serverAddress) {
+        // 如果 缓存中已经存在 channel 就直接返回
         Channel channelToServer = channels.get(serverAddress);
         if (channelToServer != null && channelToServer.isActive()) {
             return channelToServer;
@@ -244,14 +252,15 @@ class NettyClientChannelManager {
         try {
             // 使用函数对象 生成key  该key 中会携带 TMRegisterMsg 或者 RMRegisterMsg 这样就在获取channel的同时完成注册
             NettyPoolKey currentPoolKey = poolKeyFunction.apply(serverAddress);
+            // 这里保存 地址与 poolkey 的关联关系
             NettyPoolKey previousPoolKey = poolKeyMap.putIfAbsent(serverAddress, currentPoolKey);
             // 如果已经存在key了
             if (null != previousPoolKey && previousPoolKey.getMessage() instanceof RegisterRMRequest) {
                 RegisterRMRequest registerRMRequest = (RegisterRMRequest) currentPoolKey.getMessage();
-                // 使用新的 resourceId
+                // 已经从容器中移除的 对象修改他还有意义吗？？？
                 ((RegisterRMRequest) previousPoolKey.getMessage()).setResourceIds(registerRMRequest.getResourceIds());
             }
-            // 从池中获取一个channel
+            // 从池中获取一个channel  该方法会触发 poolableFactory 去创建channel 对象
             channelFromPool = nettyClientKeyPool.borrowObject(poolKeyMap.get(serverAddress));
             channels.put(serverAddress, channelFromPool);
         } catch (Exception exx) {
@@ -286,8 +295,10 @@ class NettyClientChannelManager {
      * @return
      */
     private Channel getExistAliveChannel(Channel rmChannel, String serverAddress) {
+        // 该方法底层就是 检测 java.nio.channel 连接是否打开 有对应的api 可以直接使用
         if (rmChannel.isActive()) {
             return rmChannel;
+        // isActive == false 时没有直接返回null 而是先尝试进行重连
         } else {
             int i = 0;
             // 检测重试次数
@@ -297,7 +308,7 @@ class NettyClientChannelManager {
                 } catch (InterruptedException exx) {
                     LOGGER.error(exx.getMessage());
                 }
-                // 也许每隔一段时间 就会有channel 生成
+                // 难道有什么地方会创建channel 需要查看 注册的逻辑了 可能会间接往里面设置channel
                 rmChannel = channels.get(serverAddress);
                 if (null != rmChannel && rmChannel.isActive()) {
                     return rmChannel;
@@ -305,6 +316,7 @@ class NettyClientChannelManager {
             }
             if (i == NettyClientConfig.getMaxCheckAliveRetry()) {
                 LOGGER.warn("channel " + rmChannel + " is not active after long wait, close it.");
+                // 这里指的释放 channel 是指???
                 releaseChannel(rmChannel, serverAddress);
                 return null;
             }

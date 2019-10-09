@@ -25,7 +25,7 @@ import io.seata.core.protocol.AbstractMessage;
 public class NettyPoolKey {
 
     /**
-     * 当前channel 连接的是什么事务角色
+     * 当前client 是什么角色  RM/TM
      */
     private TransactionRole transactionRole;
     /**
@@ -33,7 +33,7 @@ public class NettyPoolKey {
      */
     private String address;
     /**
-     * 初始化消息 当想要通过该 key 对象创建一个channel 时会立即发送该消息
+     * 初始化消息 当想要通过该 key 对象创建一个channel 时会立即发送该消息  一般就是注册消息
      */
     private AbstractMessage message;
 

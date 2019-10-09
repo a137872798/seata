@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type FileConfiguration.
- *
+ * 基于配置文件的 配置类
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /9/10
  */
@@ -75,7 +75,7 @@ public class FileConfiguration extends AbstractConfiguration<ConfigChangeListene
 
     /**
      * Instantiates a new File configuration.
-     *
+     * 通过某个文件名进行初始化
      * @param name the name
      */
     public FileConfiguration(String name) {
@@ -86,11 +86,13 @@ public class FileConfiguration extends AbstractConfiguration<ConfigChangeListene
             Config appConfig = ConfigFactory.parseFileAnySyntax(new File(name.substring(SYS_FILE_RESOURCE_PREFIX.length())));
             fileConfig = ConfigFactory.load(appConfig);
         } else {
+            // 使用指定文件名加载配置信息
             fileConfig = ConfigFactory.load(name);
         }
         configOperateExecutor = new ThreadPoolExecutor(CORE_CONFIG_OPERATE_THREAD, MAX_CONFIG_OPERATE_THREAD,
             Integer.MAX_VALUE, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
             new NamedThreadFactory("configOperate", MAX_CONFIG_OPERATE_THREAD));
+        // 该线程池是处理配置发生变化的
         configChangeExecutor = new ThreadPoolExecutor(CORE_CONFIG_CHANGE_THREAD, CORE_CONFIG_CHANGE_THREAD,
             Integer.MAX_VALUE, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
             new NamedThreadFactory("configChange", CORE_CONFIG_CHANGE_THREAD));

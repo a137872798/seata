@@ -25,14 +25,14 @@ import java.sql.Statement;
 
 /**
  * The type Execute template.
- * 执行器模板
+ * 执行器模板  对应到RM 中全局事务开启后每个单独的事务执行
  * @author sharajava
  */
 public class ExecuteTemplate {
 
     /**
      * Execute t.
-     *
+     * 使用模板执行 jdbc查询 (在模板下会判断当前是否处在全局事务中etc)
      * @param <T>               the type parameter
      * @param <S>               the type parameter
      * @param statementProxy    the statement proxy     使用一个会话代理对象
@@ -67,7 +67,7 @@ public class ExecuteTemplate {
         // 非开启分布式事务 且 不需要获取全局锁
         if (!RootContext.inGlobalTransaction() && !RootContext.requireGlobalLock()) {
             // Just work as original statement
-            // 执行内部封装的普通会话对象
+            // 走普通的逻辑
             return statementCallback.execute(statementProxy.getTargetStatement(), args);
         }
 
@@ -104,6 +104,7 @@ public class ExecuteTemplate {
         }
         T rs = null;
         try {
+            // 执行专门的 executor 对象 该对象应该会生成 undo日志 便于回滚
             rs = executor.execute(args);
         } catch (Throwable ex) {
             if (!(ex instanceof SQLException)) {

@@ -73,12 +73,12 @@ public class RpcClientBootstrap implements RemotingClient {
     private final NettyPoolKey.TransactionRole transactionRole;
 
     /**
-     * 初始化 Client 对象
+     * 初始化 Client 对象  这里还没有启动client 对象
      *
-     * @param nettyClientConfig
-     * @param eventExecutorGroup
-     * @param channelHandler
-     * @param transactionRole
+     * @param nettyClientConfig  通信相关配置
+     * @param eventExecutorGroup  线程池对象 通过单例模式获取 TMClient时该值为null
+     * @param channelHandler   事件处理器对象 一般会将 对应的 Client 对象本身作为handler 传入
+     * @param transactionRole  对应的客户端类型 TM/RM
      */
     public RpcClientBootstrap(NettyClientConfig nettyClientConfig, final EventExecutorGroup eventExecutorGroup,
                               ChannelHandler channelHandler, NettyPoolKey.TransactionRole transactionRole) {
@@ -104,11 +104,13 @@ public class RpcClientBootstrap implements RemotingClient {
      */
     @Override
     public void start() {
+        // 如果不存在默认线程池的情况 下 创建一个  一般都是没有指定
         if (this.defaultEventExecutorGroup == null) {
             this.defaultEventExecutorGroup = new DefaultEventExecutorGroup(nettyClientConfig.getClientWorkerThreads(),
                     new NamedThreadFactory(getThreadPrefix(nettyClientConfig.getClientWorkerThreadPrefix()),
                             nettyClientConfig.getClientWorkerThreads()));
         }
+        // 设定bootstrap 相关参数
         this.bootstrap.group(this.eventLoopGroupWorker).channel(
                 nettyClientConfig.getClientChannelClazz()).option(
                 ChannelOption.TCP_NODELAY, true).option(ChannelOption.SO_KEEPALIVE, true).option(
@@ -116,6 +118,7 @@ public class RpcClientBootstrap implements RemotingClient {
                 ChannelOption.SO_SNDBUF, nettyClientConfig.getClientSocketSndBufSize()).option(ChannelOption.SO_RCVBUF,
                 nettyClientConfig.getClientSocketRcvBufSize());
 
+        // 本地的先忽略
         if (nettyClientConfig.enableNative()) {
             if (PlatformDependent.isOsx()) {
                 if (LOGGER.isInfoEnabled()) {
@@ -126,9 +129,16 @@ public class RpcClientBootstrap implements RemotingClient {
                         .option(EpollChannelOption.TCP_QUICKACK, true);
             }
         }
-        // 判断是否使用连接池  连接池是什么???
+        // 判断是否使用连接池
         if (nettyClientConfig.isUseConnPool()) {
+            // 构建一个 以 address 为key channelpool 为value 的容器对象
             clientChannelPool = new AbstractChannelPoolMap<InetSocketAddress, FixedChannelPool>() {
+
+                /**
+                 * 这里是如何生成 pool 的方法
+                 * @param key 通过一个地址对象创建pool
+                 * @return
+                 */
                 @Override
                 protected FixedChannelPool newPool(InetSocketAddress key) {
                     return new FixedChannelPool(
@@ -136,6 +146,7 @@ public class RpcClientBootstrap implements RemotingClient {
                             bootstrap.remoteAddress(key),
                             /**
                              * 默认的pool 处理器 包含几个生命周期对应的钩子
+                             * 该对象代表每次 传入新的 address 并生成 channelPool时 会在创建的channel 后追加空闲检测节点 以及RpcClientHandler
                              */
                             new DefaultChannelPoolHandler() {
                                 /**
@@ -158,6 +169,7 @@ public class RpcClientBootstrap implements RemotingClient {
                                     pipeline.addLast(defaultEventExecutorGroup, new RpcClientHandler());
                                 }
                             },
+                            // 下面是一堆其他参数
                             ChannelHealthChecker.ACTIVE,
                             FixedChannelPool.AcquireTimeoutAction.FAIL,
                             nettyClientConfig.getMaxAcquireConnMills(),
@@ -182,6 +194,7 @@ public class RpcClientBootstrap implements RemotingClient {
                                     // 池化的不用加编解码器吗 ???
                                     .addLast(new ProtocolV1Decoder())
                                     .addLast(new ProtocolV1Encoder());
+                            // 这里添加的实际上是  AbstractRpcRemotingClient
                             if (null != channelHandler) {
                                 ch.pipeline().addLast(channelHandler);
                             }

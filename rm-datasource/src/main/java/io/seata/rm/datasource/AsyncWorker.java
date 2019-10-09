@@ -48,7 +48,7 @@ import static io.seata.core.constants.ConfigurationKeys.CLIENT_ASYNC_COMMIT_BUFF
 
 /**
  * The type Async worker.
- * 异步工作者对象 实现了 RMInbound 对象 rm 处理 commit 和rollback的 逻辑都在这里实现
+ * 异步工作对象  一般是当二阶段事务提交成功时 删除undo日志
  * @author sharajava
  */
 public class AsyncWorker implements ResourceManagerInbound {
@@ -109,7 +109,7 @@ public class AsyncWorker implements ResourceManagerInbound {
             CLIENT_ASYNC_COMMIT_BUFFER_LIMIT, 10000);
 
     /**
-     * 创建阻塞队列
+     * 待删除的undo 日志存储队列
      */
     private static final BlockingQueue<Phase2Context> ASYNC_COMMIT_BUFFER = new LinkedBlockingQueue<>(ASYNC_COMMIT_BUFFER_LIMIT);
 
@@ -130,7 +130,7 @@ public class AsyncWorker implements ResourceManagerInbound {
 
     /**
      * Init.
-     * 初始化线程池
+     * 异步工作者初始化
      */
     public synchronized void init() {
         LOGGER.info("Async Commit Buffer Limit: " + ASYNC_COMMIT_BUFFER_LIMIT);
@@ -154,19 +154,20 @@ public class AsyncWorker implements ResourceManagerInbound {
 
     /**
      * 消费阻塞队列中的 提交任务
-     * 这里怎么没有看到提交动作 只是看到了删除日志的动作 ???
+     * 在AT 模式下 第一阶段中 事务已经提交 如果全局事务需要回滚会利用生成的undo 日志对业务无感知回滚  全局事务成功的情况下 就不需要做什么提交工作了只需要删除掉undo 就好
      */
     private void doBranchCommits() {
+        // 如果待删除的undo 日志容器 为空直接返回
         if (ASYNC_COMMIT_BUFFER.size() == 0) {
             return;
         }
 
+        // 代表一次允许删除的量
         Map<String, List<Phase2Context>> mappedContexts = new HashMap<>(DEFAULT_RESOURCE_SIZE);
 
-        // 每次都会处理所有的任务  这里先将队列中所有任务设置到 map中
+        // 每次都会处理所有的任务  这里将队列中所有任务设置到 map中 (以resourceId 为key )
         while (!ASYNC_COMMIT_BUFFER.isEmpty()) {
             Phase2Context commitContext = ASYNC_COMMIT_BUFFER.poll();
-            // 将任务队列中所有元素取出来后 将其设置到一个map 中 string 代表同属一个资源(事务)  上下文对象推测就是分布式事务中各个分支事务
             List<Phase2Context> contextsGroupedByResourceId = mappedContexts.get(commitContext.resourceId);
             if (contextsGroupedByResourceId == null) {
                 contextsGroupedByResourceId = new ArrayList<>();
@@ -182,14 +183,14 @@ public class AsyncWorker implements ResourceManagerInbound {
             DataSourceProxy dataSourceProxy;
             try {
                 try {
-                    // 获取处理AT 的 manager 对象
+                    // 该对象只在AT 模式下工作 所以获取AT的 资源管理器
                     DataSourceManager resourceManager = (DataSourceManager) DefaultResourceManager.get().getResourceManager(BranchType.AT);
-                    // 每个 key 都有自己的 dataSource 对象 他们被缓存在 DataSourceManager 中
+                    // 通过resourceId 获取数据源代理对象
                     dataSourceProxy = resourceManager.get(entry.getKey());
                     if (dataSourceProxy == null) {
                         throw new ShouldNeverHappenException("Failed to find resource on " + entry.getKey());
                     }
-                    // 获取真正的连接对象
+                    // 获取连接对象 使用jdbc编程 删除undo日志
                     conn = dataSourceProxy.getPlainConnection();
                 } catch (SQLException sqle) {
                     LOGGER.warn("Failed to get connection for async committing on " + entry.getKey(), sqle);
@@ -222,6 +223,7 @@ public class AsyncWorker implements ResourceManagerInbound {
                 }
 
                 try {
+                    // 委托给 UndoLogManager 对象去删除 undo日志
                     UndoLogManagerFactory.getUndoLogManager(dataSourceProxy.getDbType()).batchDeleteUndoLog(xids, branchIds, conn);
                 }catch (Exception ex) {
                     LOGGER.warn("Failed to batch delete undo log [" + branchIds + "/" + xids + "]", ex);

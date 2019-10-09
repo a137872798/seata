@@ -72,8 +72,6 @@ public class DefaultResourceManager implements ResourceManager {
      */
     protected void initResourceManagers() {
         //init all resource managers
-        // 也就是说每个实现 都有对应的唯一BranchType??? 不然不就覆盖了吗
-        // dataSource 是 AT类型的
         List<ResourceManager> allResourceManagers = EnhancedServiceLoader.loadAll(ResourceManager.class);
         if (CollectionUtils.isNotEmpty(allResourceManagers)) {
             for (ResourceManager rm : allResourceManagers) {

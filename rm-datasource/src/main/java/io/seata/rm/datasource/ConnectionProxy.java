@@ -46,7 +46,7 @@ public class ConnectionProxy extends AbstractConnectionProxy {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConnectionProxy.class);
 
     /**
-     * 包含一个上下文
+     * 包含一个上下文 每次调用getConnection 都会生成一个新的 代理对象也就是 对应一个专门的上下文对象
      */
     private ConnectionContext context = new ConnectionContext();
 

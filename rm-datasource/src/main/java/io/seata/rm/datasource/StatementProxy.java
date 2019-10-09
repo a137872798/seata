@@ -60,7 +60,7 @@ public class StatementProxy<T extends Statement> extends AbstractStatementProxy<
     }
 
     /**
-     * 执行 sql 语句 并返回 结果集   当没有使用sql 进行初始化时
+     * 执行 sql 语句 并返回 结果集  当spring 继承 orm 框架时 就是通过该方法 与jdbc 交互并返回结果集的
      * @param sql
      * @return
      * @throws SQLException
@@ -69,6 +69,7 @@ public class StatementProxy<T extends Statement> extends AbstractStatementProxy<
     public ResultSet executeQuery(String sql) throws SQLException {
         this.targetSQL = sql;
         return ExecuteTemplate.execute(this, new StatementCallback<ResultSet, T>() {
+            // 这里就是正常的与jdbc交互获取结果集的过程
             @Override
             public ResultSet execute(Statement statement, Object... args) throws SQLException {
                 return statement.executeQuery((String) args[0]);

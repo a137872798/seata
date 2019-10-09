@@ -57,9 +57,6 @@ public final class RmRpcClient extends AbstractRpcRemotingClient {
      */
     private ResourceManager resourceManager;
     private static volatile RmRpcClient instance;
-    /**
-     * 这个是干嘛的
-     */
     private String customerKeys;
     private final AtomicBoolean initialized = new AtomicBoolean(false);
     private static final long KEEP_ALIVE_TIME = Integer.MAX_VALUE;
@@ -130,7 +127,7 @@ public final class RmRpcClient extends AbstractRpcRemotingClient {
     
     /**
      * Sets resource manager.
-     *
+     * 在创建RMClient 对象时 会创建 ResourceManager 对象并设置到client 中
      * @param resourceManager the resource manager
      */
     public void setResourceManager(ResourceManager resourceManager) {
@@ -161,34 +158,48 @@ public final class RmRpcClient extends AbstractRpcRemotingClient {
             super.init();
         }
     }
-    
+
+    /**
+     * 在终结钩子中会销毁 RMClient 对象
+     */
     @Override
     public void destroy() {
         super.destroy();
+        // 做清理工作
         initialized.getAndSet(false);
         instance = null;
     }
-    
+
+    /**
+     * 生成 RM Client 对应的 poolKey
+     * @return
+     */
     @Override
     protected Function<String, NettyPoolKey> getPoolKeyFunction() {
         return (serverAddress) -> {
+            // 如果存在自定义 key 就使用自定义的 否则 将资源所有信息拼接起来生成一个key 对象
             String resourceIds = customerKeys == null ? getMergedResourceKeys() : customerKeys;
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info("RM will register :" + resourceIds);
             }
+            // 将 应用id 和 事务组名生成一个 注册请求对象 并生成poolkey 对象
             RegisterRMRequest message = new RegisterRMRequest(applicationId, transactionServiceGroup);
             message.setResourceIds(resourceIds);
             return new NettyPoolKey(NettyPoolKey.TransactionRole.RMROLE, serverAddress, message);
         };
     }
-    
+
+    /**
+     * 也是直接返回初始化时传入的事务组
+     * @return
+     */
     @Override
     protected String getTransactionServiceGroup() {
         return transactionServiceGroup;
     }
 
     /**
-     * 当注册到 server 成功时触发
+     * 当注册到 server (TC) 成功时触发
      * @param serverAddress  the server address
      * @param channel        the channel
      * @param response       the response
@@ -204,12 +215,13 @@ public final class RmRpcClient extends AbstractRpcRemotingClient {
         }
         // 如果自定义 key 不存在
         if (customerKeys == null) {
+            // 缓存channel 实际上 当 调用poolableFactory.makeObject 成功后也会往 channels 中存放channel
             getClientChannelManager().registerChannel(serverAddress, channel);
-            // 拼接资源信息 生成唯一标识
+            // 将本RM 上所有的 resource 注册到TC 上
             String dbKey = getMergedResourceKeys();
             RegisterRMRequest message = (RegisterRMRequest)requestMessage;
+            // 代表资源发生变化  首次生成的注册数据是不包含 resourceId的
             if (message.getResourceIds() != null) {
-                // 资源不匹配 发送到 server 注册??? 啥意思
                 if (!message.getResourceIds().equals(dbKey)) {
                     sendRegisterMessage(serverAddress, channel, dbKey);
                 }
@@ -237,7 +249,8 @@ public final class RmRpcClient extends AbstractRpcRemotingClient {
     
     /**
      * Register new db key.
-     * 注册资源
+     * 注册资源  针对 AT 模式下 每个应用启动时会关联一个 datasource 那么该对象生成的 datasourceProxy 就会被看作一个resource 并被注册到RM 上
+     * 这里是RM 将资源上报到TC
      * @param resourceGroupId the resource group id  所在资源组名
      * @param resourceId      the db key  资源id
      */
@@ -245,27 +258,26 @@ public final class RmRpcClient extends AbstractRpcRemotingClient {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("register to RM resourceId:" + resourceId);
         }
-        // 尝试重新连接到 某个 server 组中 (应该是通过注册中心 + LoadBalance 进行负载之后 重连)
+        // channel 为空的情况先不考虑
         if (getClientChannelManager().getChannels().isEmpty()) {
             getClientChannelManager().reconnect(transactionServiceGroup);
             return;
         }
         synchronized (getClientChannelManager().getChannels()) {
+            // 将资源发送所有server 中(归属同一个事务组) 保证一致性  (因为这样每个server 数据都是一致的 所以实现分布式的一致性)
             for (Map.Entry<String, Channel> entry : getClientChannelManager().getChannels().entrySet()) {
                 String serverAddress = entry.getKey();
                 Channel rmChannel = entry.getValue();
                 if (LOGGER.isInfoEnabled()) {
                     LOGGER.info("register resource, resourceId:" + resourceId);
                 }
-                // 将资源发送所有server 中 保证一致性  (因为这样每个server 数据都是一致的 所以实现分布式的一致性)
                 sendRegisterMessage(serverAddress, rmChannel, resourceId);
             }
         }
     }
 
     /**
-     * 将注册请求发送到 server   这个注册是什么意思 告诉server 这里有一个 RM 管理器吗
-     * 既然有了注册中心为什么RM 和 TM 不直接交由注册中心管理呢
+     * RM 将 资源上报到TC
      * @param serverAddress
      * @param channel
      * @param dbKey
@@ -296,6 +308,7 @@ public final class RmRpcClient extends AbstractRpcRemotingClient {
      * @return
      */
     private String getMergedResourceKeys() {
+        // 在 AT 模式下 将dataSource 的数据 发送到 TC 上
         Map<String, Resource> managedResources = resourceManager.getManagedResources();
         Set<String> resourceIds = managedResources.keySet();
         if (!resourceIds.isEmpty()) {

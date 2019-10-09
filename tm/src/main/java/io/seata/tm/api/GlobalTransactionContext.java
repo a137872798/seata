@@ -58,6 +58,7 @@ public class GlobalTransactionContext {
      * @return new context if no existing there.
      */
     public static GlobalTransaction getCurrentOrCreate() {
+        // 如果已经存在 xid 就会创建一个 participant 对象
         GlobalTransaction tx = getCurrent();
         if (tx == null) {
             // 如果当前事务id 还没有创建 那么全局事务还没有生成 这里就要创建一个新的 全局事务对象
@@ -68,7 +69,7 @@ public class GlobalTransactionContext {
 
     /**
      * Reload GlobalTransaction instance according to the given XID
-     *
+     * 根据传入的xid 重新加载 全局事务 该API 一般在 提交全局事务超时时执行  这里返回一个无法begin 的事务对象 且使用传入的xid
      * @param xid the xid
      * @return reloaded transaction instance.
      * @throws TransactionException the transaction exception

@@ -50,7 +50,7 @@ import static io.seata.common.exception.FrameworkErrorCode.NoAvailableService;
 
 /**
  * The type Data source manager.
- * RM 骨架类 具备注册自身 以及报告状态等能力  这里代表 基于db 实现RM
+ * 该对象 对应 AT 模式下的 资源管理器对象 在AT 模式下 每个dataSourceProxy 都会被看成一个Resource对象
  * @author sharajava
  */
 public class DataSourceManager extends AbstractResourceManager implements Initialize {
@@ -63,7 +63,7 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
     private ResourceManagerInbound asyncWorker;
 
     /**
-     * dataSource 缓存
+     * key: resourceId  value: dataSourceProxy
      */
     private Map<String, Resource> dataSourceCache = new ConcurrentHashMap<>();
 
@@ -161,19 +161,20 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
     }
 
     /**
-     * 初始化
+     * 初始化 当该对象通过SPI 机制进行加载时会触发该方法
      */
     @Override
     public void init() {
-        // 构建一个 异步worker 对象 并执行init 方法
-        // 当 异步worker 对象被创建时 会定时从一个阻塞队列中拉取所有任务并进行执行
+        // AsyncWorker 用于处理 AT 模式下 提交成功的任务 (删除undo 日志)
         AsyncWorker asyncWorker = new AsyncWorker();
+        // 进行初始化 开启一个定期 删除undo日志的定时器
         asyncWorker.init();
+        // 就是setAsyncWorker
         initAsyncWorker(asyncWorker);
     }
 
     /**
-     * 注册某个资源 (资源是如何被定义的 又要注册到哪)
+     * RM 上报某个资源 到TC 上
      * @param resource
      */
     @Override
@@ -182,7 +183,7 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
         DataSourceProxy dataSourceProxy = (DataSourceProxy)resource;
         // 缓存资源
         dataSourceCache.put(dataSourceProxy.getResourceId(), dataSourceProxy);
-        // 将资源注册到RM 上   注意这里是注册到所有 server 上 就是为了保证C (一致性)
+        // 将资源注册到RM 上   注意这里是注册到所有 server 上 就是为了保证 (最终一致性)
         super.registerResource(dataSourceProxy);
     }
 

@@ -33,8 +33,11 @@ public class RMClient {
      */
     public static void init(String applicationId, String transactionServiceGroup) {
         RmRpcClient rmRpcClient = RmRpcClient.getInstance(applicationId, transactionServiceGroup);
+        // TM client 没有设置 resourceManager 的概念
         rmRpcClient.setResourceManager(DefaultResourceManager.get());
+        // 设置clientMessage 监听器
         rmRpcClient.setClientMessageListener(new RmMessageListener(DefaultRMHandler.get()));
+        // 初始化逻辑 同TM
         rmRpcClient.init();
     }
 

@@ -88,7 +88,7 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
     }
 
     /**
-     * 执行逻辑
+     * dao 层的执行 最终会委托到这层
      * @param args the args
      * @return
      * @throws Throwable

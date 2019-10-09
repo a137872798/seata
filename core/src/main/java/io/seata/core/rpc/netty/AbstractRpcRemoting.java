@@ -128,7 +128,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
 
     /**
      * Instantiates a new Abstract rpc remoting.
-     * 使用线程池来初始化该对象
+     * 传入一个用于处理消息的线程池对象
      * @param messageExecutor the message executor
      */
     public AbstractRpcRemoting(ThreadPoolExecutor messageExecutor) {
@@ -167,7 +167,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
                 for (MessageFuture messageFuture : timeoutMessageFutures) {
                     // 从当前容器中移除 超时future 对象
                     futures.remove(messageFuture.getRequestMessage().getId());
-                    // 通过设置结果的方式 强制性唤醒等待线程
+                    // 通过设置结果的方式 强制性唤醒等待线程  这里的设计跟rocketMQ 很像
                     messageFuture.setResultMessage(null);
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug("timeout clear future : " + messageFuture.getRequestMessage().getBody());
@@ -285,7 +285,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
         messageFuture.setTimeout(timeout);
         futures.put(rpcMessage.getId(), messageFuture);
 
-        // 如果指定了地址
+        // 如果指定了地址 就代表经过均衡负载后指定了某个TC 节点
         if (address != null) {
             ConcurrentHashMap<String, BlockingQueue<RpcMessage>> map = basketMap;
             BlockingQueue<RpcMessage> basket = map.get(address);
@@ -294,19 +294,20 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
                 map.putIfAbsent(address, new LinkedBlockingQueue<>());
                 basket = map.get(address);
             }
-            // 将消息设置到阻塞队列中  应该有个线程池在处理这些消息
+            // 将消息设置到阻塞队列中 有一个 asyncWorker 对象会获取basketMap的数据并发送
             basket.offer(rpcMessage);
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("offer message: " + rpcMessage.getBody());
             }
-            // 未发送情况下 唤醒 merge 锁
+            // 未发送情况下 唤醒发送
             if (!isSending) {
                 synchronized (mergeLock) {
                     mergeLock.notifyAll();
                 }
             }
         } else {
-            // 未指定地址的情况下
+            // 未指定地址的情况下走这里
+            // 发送注册消息时不会指定地址 也就是将信息注册到同一事务组下所有 TC 节点
             ChannelFuture future;
             // 先检测 channel 是否可写入  如果不可写入 会阻塞线程 直到被唤醒(也就是变成可写 或者 超过最大重试次数)
             channelWriteableCheck(channel, msg);
@@ -352,20 +353,24 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
     /**
      * Send request.
      * 同步发送请求消息
-     * @param channel the channel
-     * @param msg     the msg
+     * @param channel the channel  用于发送消息的channel remote 是server
+     * @param msg     the msg  发送的消息体 在Seats 中消息支持批量发送
      */
     protected void sendRequest(Channel channel, Object msg) {
         RpcMessage rpcMessage = new RpcMessage();
-        // 如果是心跳消息 设置对应的消息类型
+        // 如果是心跳消息 设置对应的消息类型  否则就是普通的请求消息
         rpcMessage.setMessageType(msg instanceof HeartbeatMessage ?
                 ProtocolConstants.MSGTYPE_HEARTBEAT_REQUEST
                 : ProtocolConstants.MSGTYPE_RESQUEST);
+        // 设置指定的序列化工具
         rpcMessage.setCodec(ProtocolConstants.CONFIGURED_CODEC);
+        // 是否压缩
         rpcMessage.setCompressor(ProtocolConstants.CONFIGURED_COMPRESSOR);
+        // 数据体
         rpcMessage.setBody(msg);
+        // id 生成器 为每条消息自动设置id
         rpcMessage.setId(getNextMessageId());
-        // 同步调用本身应该是不需要放到容器中的  而异步确实有这个必要  而 mergeMessage 可能是特殊要求也要加入到容器中
+        // 如果待发送的消息是 merge 消息  存放到 merge 容器中
         if (msg instanceof MergeMessage) {
             mergeMsgMap.put(rpcMessage.getId(), (MergeMessage)msg);
         }

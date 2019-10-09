@@ -35,6 +35,7 @@ public final class TransactionHookManager {
      * @throws IllegalStateException
      */
     public static List<TransactionHook> getHooks() throws IllegalStateException {
+        // 从本地线程中获取绑定的 hook 应该是在调用 @GlobalTransactional 的注解方法前设置的
         List<TransactionHook> hooks = LOCAL_HOOKS.get();
 
         if (hooks == null || hooks.isEmpty()) {

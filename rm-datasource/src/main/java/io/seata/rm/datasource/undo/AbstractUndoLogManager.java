@@ -133,9 +133,9 @@ public abstract class AbstractUndoLogManager implements UndoLogManager {
 
     /**
      * batch Delete undo log.
-     * 批量删除
-     * @param xids
-     * @param branchIds
+     * 批量删除 回滚日志 该日志是用于AT 无感知补偿的 就是根据之前sql 前后数据的变化 反推出补偿的sql
+     * @param xids 待批量删除数据对应的所有全局事务id
+     * @param branchIds  所有分事务id
      * @param conn
      */
     @Override
@@ -145,10 +145,11 @@ public abstract class AbstractUndoLogManager implements UndoLogManager {
         }
         int xidSize = xids.size();
         int branchIdSize = branchIds.size();
-        // 构建批量删除的语句
+        // 构建批量删除的语句 这里可以不细看
         String batchDeleteSql = toBatchDeleteUndoLogSql(xidSize, branchIdSize);
         PreparedStatement deletePST = null;
         try {
+            // 使用参数 替换占位符" ? "
             deletePST = conn.prepareStatement(batchDeleteSql);
             int paramsIndex = 1;
             // 设置参数信息
@@ -158,6 +159,7 @@ public abstract class AbstractUndoLogManager implements UndoLogManager {
             for (String xid: xids){
                 deletePST.setString(paramsIndex++, xid);
             }
+            // 批量删除
             int deleteRows = deletePST.executeUpdate();
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("batch delete undo log size " + deleteRows);
@@ -169,6 +171,7 @@ public abstract class AbstractUndoLogManager implements UndoLogManager {
             throw (SQLException) e;
         } finally {
             if (deletePST != null) {
+                // 关闭会话对象
                 deletePST.close();
             }
         }

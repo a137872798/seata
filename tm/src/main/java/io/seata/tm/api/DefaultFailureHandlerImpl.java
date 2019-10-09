@@ -62,16 +62,31 @@ public class DefaultFailureHandlerImpl implements FailureHandler {
         timer.newTimeout(new CheckTimerTask(tx, GlobalStatus.Committed), SCHEDULE_INTERVAL_SECONDS, TimeUnit.SECONDS);
     }
 
+    /**
+     * 当回滚失败时触发 全局事务的 参与者是不能进行回滚的 会抛出异常
+     * @param tx    the tx
+     * @param cause the cause
+     */
     @Override
     public void onRollbackFailure(GlobalTransaction tx, Throwable cause) {
         LOGGER.warn("Failed to rollback transaction[" + tx.getXid() + "]", cause);
+        // 生成一个校验对象 通过定时器去跑
         timer.newTimeout(new CheckTimerTask(tx, GlobalStatus.Rollbacked), SCHEDULE_INTERVAL_SECONDS, TimeUnit.SECONDS);
     }
 
+    /**
+     * 定时器对象
+     */
     protected class CheckTimerTask implements TimerTask {
 
+        /**
+         * 事务信息
+         */
         private final GlobalTransaction tx;
 
+        /**
+         * 要求事务对象的最终状态
+         */
         private final GlobalStatus required;
 
         private int count = 0;
@@ -86,18 +101,26 @@ public class DefaultFailureHandlerImpl implements FailureHandler {
         @Override
         public void run(Timeout timeout) throws Exception {
             if (!isStopped) {
+                // 超过重试次数
                 if (++count > RETRY_MAX_TIMES) {
                     LOGGER.error(
                         "transaction[" + tx.getXid() + "] retry fetch status times exceed the limit [" + RETRY_MAX_TIMES
                             + " times]");
                     return;
                 }
+                // 判断该任务是否应该停止
                 isStopped = shouldStop(tx, required);
                 timer.newTimeout(this, SCHEDULE_INTERVAL_SECONDS, TimeUnit.SECONDS);
             }
         }
     }
 
+    /**
+     * 确保 globalTransaction 为需要的状态
+     * @param tx
+     * @param required
+     * @return
+     */
     private boolean shouldStop(final GlobalTransaction tx, GlobalStatus required) {
         try {
             GlobalStatus status = tx.getStatus();

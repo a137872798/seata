@@ -93,6 +93,11 @@ public abstract class AbstractConnectionProxy implements Connection {
         return dataSourceProxy.getDbType();
     }
 
+    /**
+     * 业务代码会通过这里与jdbc 交互
+     * @return
+     * @throws SQLException
+     */
     @Override
     public Statement createStatement() throws SQLException {
         Statement targetStatement = getTargetConnection().createStatement();

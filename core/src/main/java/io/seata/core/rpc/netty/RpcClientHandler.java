@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Rpc client handler.
- * 双端处理器
+ * 仅通信层面的双端处理器
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /9/12
  */

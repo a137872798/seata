@@ -56,7 +56,7 @@ import static io.seata.core.constants.ConfigurationKeys.DATASOURCE_AUTOPROXY;
 
 /**
  * The type Global transaction scanner.
- * 全局事务扫描对象
+ * 全局事务扫描对象 一般在使用 spring 搭配seata 时将该对象注册到bean容器中
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /12/28
  */
@@ -186,13 +186,15 @@ public class GlobalTransactionScanner extends AbstractAutoProxyCreator
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Initializing Global Transaction Clients ... ");
         }
-        // 应用id 不能为空
+        // 应用id 不能为空  看来不同事务组的应用之间事务是相互隔开的
         if (StringUtils.isNullOrEmpty(applicationId) || StringUtils.isNullOrEmpty(txServiceGroup)) {
             throw new IllegalArgumentException(
                 "applicationId: " + applicationId + ", txServiceGroup: " + txServiceGroup);
         }
         //init TM
-        // 每个 事务组对应唯一一个client实例对象
+        // 开始初始化 TM 客户端实例  该对象用于开启和关闭全局事务 （实际上向TC 申请开通）
+        // 这里内部只是初始化 bootstrap 对象而没有真正进行连接  (一开始也没有连接的必要只有需要开启全局事务 或者将当前分事务注册到TC时才有必要
+        // 那么这里可以预见的是应该会采用某种连接池化计数来 避免高额的开销)
         TMClient.init(applicationId, txServiceGroup);
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info(
@@ -200,7 +202,7 @@ public class GlobalTransactionScanner extends AbstractAutoProxyCreator
                     + txServiceGroup + "]");
         }
         //init RM
-        // 初始化RM 对象 同样一个事务组对应一个实例
+        // 初始化RM 客户端  该对象用于向TC 注册分事务对象
         RMClient.init(applicationId, txServiceGroup);
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info(
@@ -216,20 +218,23 @@ public class GlobalTransactionScanner extends AbstractAutoProxyCreator
 
     }
 
+    /**
+     * 注册spring 应用程序中的终结钩子
+     */
     private void registerSpringShutdownHook() {
         if (applicationContext instanceof ConfigurableApplicationContext) {
-            // 注册终结钩子
+            // 注册终结钩子  该方法会将 applicationContext 中的 shuthook 设置到Runtime 中
             ((ConfigurableApplicationContext) applicationContext).registerShutdownHook();
-            // 这里移除了自己注册的终结钩子
+            // 这里移除了自己注册的终结钩子 应该是避免重复注册钩子
             ShutdownHook.removeRuntimeShutdownHook();
         }
-        // 增加 2个 待关闭的对象
+        // 将 TM Client 和 RM Client 注册到钩子中 在检测到程序终止时会调用destroy
         ShutdownHook.getInstance().addDisposable(TmRpcClient.getInstance(applicationId, txServiceGroup));
         ShutdownHook.getInstance().addDisposable(RmRpcClient.getInstance(applicationId, txServiceGroup));
     }
 
     /**
-     * 包装对象
+     * 该方法会拦截所有满足条件的bean 对象并生成动态代理对象 (实际上就是针对 @GlobalTransactional 注解进行拓展)
      * @param bean
      * @param beanName
      * @param cacheKey
@@ -237,11 +242,12 @@ public class GlobalTransactionScanner extends AbstractAutoProxyCreator
      */
     @Override
     protected Object wrapIfNecessary(Object bean, String beanName, Object cacheKey) {
-        // 如果不允许全局事务 直接返回
+        // 如果不允许全局事务 直接返回 也就是不允许生成拦截@GlobalTransactional 注解的动态代理对象
         if (disableGlobalTransaction) {
             return bean;
         }
         try {
+            // 锁定需要生成的代理对象存放容器
             synchronized (PROXYED_SET) {
                 // 如果该对象已经保存到 代理容器中 也是直接返回
                 if (PROXYED_SET.contains(beanName)) {
@@ -255,7 +261,7 @@ public class GlobalTransactionScanner extends AbstractAutoProxyCreator
                     // 生成TCC 的拦截对象
                     interceptor = new TccActionInterceptor(TCCBeanParserUtils.getRemotingDesc(beanName));
                 } else {
-                    // 如果不是 TCC 事务 生成全局拦截器
+                    // 如果不是 TCC 事务 生成全局拦截器  这里对应的应该就是AT 模式
                     Class<?> serviceInterface = SpringProxyUtils.findTargetClass(bean);
                     // 获取该类实现的所有接口
                     Class<?>[] interfacesIfJdk = SpringProxyUtils.findInterfaces(bean);
@@ -294,19 +300,27 @@ public class GlobalTransactionScanner extends AbstractAutoProxyCreator
         }
     }
 
+    /**
+     * 判断目标对象是否携带 全局事务相关注解
+     * @param classes 可能是目标类 也可能是目标类的接口类
+     * @return
+     */
     private boolean existsAnnotation(Class<?>[] classes) {
         if (classes != null && classes.length > 0) {
             for (Class clazz : classes) {
                 if (clazz == null) {
                     continue;
                 }
+                // 获取目标类的所有方法
                 Method[] methods = clazz.getMethods();
                 for (Method method : methods) {
+                    // 判断该方法是否 由 @GlobalTransactional 修饰
                     GlobalTransactional trxAnno = method.getAnnotation(GlobalTransactional.class);
                     if (trxAnno != null) {
                         return true;
                     }
 
+                    // 是否携带全局事务锁
                     GlobalLock lockAnno = method.getAnnotation(GlobalLock.class);
                     if (lockAnno != null) {
                         return true;
@@ -329,15 +343,18 @@ public class GlobalTransactionScanner extends AbstractAutoProxyCreator
 
     /**
      * 后置函数 当该对象 初始化成功后 就会开启对应的 client 对象
+     * 先触发该函数 之后触发postProcessBeforeInitialization
      */
     @Override
     public void afterPropertiesSet() {
+        // 如果没有开启分布式事务 直接返回
         if (disableGlobalTransaction) {
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info("Global transaction is disabled.");
             }
             return;
         }
+        // 开启RM/TM客户端 便于与 TC 进行通信
         initClient();
 
     }
@@ -349,7 +366,9 @@ public class GlobalTransactionScanner extends AbstractAutoProxyCreator
     }
 
     /**
-     * 初始化前调用
+     * 在afterPropertiesSet 之后触发 寻找满足 条件的类并依靠aop织入逻辑
+     * 该方法 会处理注册到 beanFactory 中的所有bean 且在初始化前触发
+     * 该方法的触发 会在其他bean 的 afterPropertiesSet 之前
      * @param bean
      * @param beanName
      * @return
@@ -357,15 +376,16 @@ public class GlobalTransactionScanner extends AbstractAutoProxyCreator
      */
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
-        // 代表该bean 对象是 dataSource 对象
+        // 代表该bean 对象是 dataSource 对象  且不是 DataSourceProxy 且开启datasource自动代理的情况
         if (bean instanceof DataSource && !(bean instanceof DataSourceProxy) && ConfigurationFactory.getInstance().getBoolean(DATASOURCE_AUTOPROXY, false)) {
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info("Auto proxy of  [" + beanName + "]");
             }
-            // 生成一个代理对象
+            // 将 普通的datasource 对象包装成一个代理对象 之后resource 会被RM 上报到TC 上
             DataSourceProxy dataSourceProxy = DataSourceProxyHolder.get().putDataSource((DataSource) bean);
             // 这里 CGLIB 的 Enhancer 对象 这里代表 生成一个方法级别的拦截对象
             return Enhancer.create(bean.getClass(), (org.springframework.cglib.proxy.MethodInterceptor) (o, method, args, methodProxy) -> {
+                // 这里是 拦截datasource 类的 所有方法  这里应该是只 datasource 与 datasourceProxy 的同名方法都被委托到 datasourceProxy中了
                 Method m = BeanUtils.findDeclaredMethod(DataSourceProxy.class, method.getName(), method.getParameterTypes());
                 if (null != m) {
                     return m.invoke(dataSourceProxy, args);

@@ -51,7 +51,7 @@ import static io.seata.common.exception.FrameworkErrorCode.NoAvailableService;
 
 /**
  * The type Rpc remoting client.
- * 客户端
+ * TM client和 RM client的骨架类
  * @author jimin.jm @alibaba-inc.com
  * @author zhaojun
  * @date 2018 /9/12
@@ -94,14 +94,22 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
      * 用于merge 消息的线程池对象
      */
     private ExecutorService mergeSendExecutorService;
-    
+
+    /**
+     *
+     * @param nettyClientConfig  通信相关配置类
+     * @param eventExecutorGroup  通过单例模式构造下该值为null
+     * @param messageExecutor  代表消息相关的线程池
+     * @param transactionRole  代表本client 的角色  TM/RM
+     */
     public AbstractRpcRemotingClient(NettyClientConfig nettyClientConfig, EventExecutorGroup eventExecutorGroup,
                                      ThreadPoolExecutor messageExecutor, NettyPoolKey.TransactionRole transactionRole) {
         super(messageExecutor);
         this.transactionRole = transactionRole;
         // 使用给定的config 去初始化 bootstrap 对象  注意本对象也是一个 channelHandler 对象 (因为继承自 ChannelDuplexHandler)
+        // 这里没有启动 bootstrap
         clientBootstrap = new RpcClientBootstrap(nettyClientConfig, eventExecutorGroup, this, transactionRole);
-        // 生成channel 管理对象
+        // 生成channel 管理对象 应该是使用一个 bootstrap 对象维护多个连接
         clientChannelManager = new NettyClientChannelManager(
                 // 使用一个池化工厂
             new NettyPoolableFactory(this, clientBootstrap), getPoolKeyFunction(), nettyClientConfig);
@@ -113,7 +121,7 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
     
     /**
      * Get pool key function.
-     * 池化的 fun
+     * 获取生成 pool 键的方法
      * @return lambda function
      */
     protected abstract Function<String, NettyPoolKey> getPoolKeyFunction();
@@ -127,13 +135,14 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
 
     @Override
     public void init() {
-        // 启动bootstrap 连接到 server
+        // 这里是设置 netty.bootstrap 的相关配置 而没有执行connect 方法
         clientBootstrap.start();
         // 启动定时器
         timerExecutor.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
-                // 定时重连???
+                // 委托给 ChannelManager 进行定期重连   参数是事务组 (该属性在初始化 Scanner bean 对象时设置)
+                // 这里一旦发现是活的channel 就会进行重连
                 clientChannelManager.reconnect(getTransactionServiceGroup());
             }
         }, SCHEDULE_INTERVAL_MILLS, SCHEDULE_INTERVAL_MILLS, TimeUnit.SECONDS);
@@ -143,7 +152,7 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
             KEEP_ALIVE_TIME, TimeUnit.MILLISECONDS,
             new LinkedBlockingQueue<>(),
             new NamedThreadFactory(getThreadPrefix(), MAX_MERGE_SEND_THREAD));
-        // 启动任务
+        // 启动任务  将要发送的消息 整合后发送 而非直接发送
         mergeSendExecutorService.submit(new MergedSendRunnable());
         // 开启定时器扫描future 中没有结果的对象 并关闭
         super.init();
@@ -160,7 +169,6 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
 
     /**
      * 当接受到读事件时触发
-     * 为什么这里只处理 响应方的消息 代表着client 这层的抽象只能发送请求消息 而server 这层抽象代表接受client 的消息并返回响应消息
      * @param ctx
      * @param msg
      * @throws Exception
@@ -295,7 +303,7 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
     }
 
     /**
-     * 发送消息的对外入口
+     * 将消息发送到 事务组中的某个 TC 这里要注意 没有实现一致性 那么TC 节点间会在什么时候做同步呢???
      * @param msg     the msg
      * @param timeout the timeout
      * @return
@@ -304,6 +312,7 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
     @Override
     public Object sendMsgWithResponse(Object msg, long timeout) throws TimeoutException {
         // 获取 事务组 并使用均衡负载寻找合适的 address
+        // 这里会维护 同一事务组下所有server 的连接
         String validAddress = loadBalance(getTransactionServiceGroup());
         // 通过 address 寻找channel 对象 没有的话应该会创建一条新的
         Channel channel = clientChannelManager.acquireChannel(validAddress);
@@ -359,7 +368,7 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
     
     /**
      * Sets client message listener.
-     *
+     * 设置消息监听器 用于处理消息
      * @param clientMessageListener the client message listener
      */
     public void setClientMessageListener(ClientMessageListener clientMessageListener) {
@@ -418,9 +427,11 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
                     } catch (InterruptedException e) {
                     }
                 }
+                // 代表正在发送中
                 isSending = true;
-                // 开始遍历桶中的数据
+                // 开始遍历桶中的数据  要发往TC 的数据会先暂存到basketMap 中等待批量发送
                 for (String address : basketMap.keySet()) {
+                    // 每个地址有对应的待发送的消息
                     BlockingQueue<RpcMessage> basket = basketMap.get(address);
                     if (basket.isEmpty()) {
                         continue;
@@ -442,21 +453,26 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
                     try {
                         // 获取地址并发送消息  这里没有阻塞
                         sendChannel = clientChannelManager.acquireChannel(address);
+                        // 将消息通过channel 发送到对应address 的服务器
                         sendRequest(sendChannel, mergeMessage);
                     } catch (FrameworkException e) {
+                        // 如果是通道无法写入 销毁该channel
                         if (e.getErrcode() == FrameworkErrorCode.ChannelIsNotWritable && sendChannel != null) {
                             destroyChannel(address, sendChannel);
                         }
                         // fast fail
                         for (Integer msgId : mergeMessage.msgIds) {
+                            // future 代表等待 接受结果的 future 对象 在通信模型中就是一个响应池
                             MessageFuture messageFuture = futures.remove(msgId);
                             if (messageFuture != null) {
+                                // 设置响应结果为null 没有使用重发机制吗???
                                 messageFuture.setResultMessage(null);
                             }
                         }
                         LOGGER.error("client merge call failed: {}", e.getMessage(), e);
                     }
                 }
+                // 看来正在发送中已经是会阻止某些操作
                 isSending = false;
             }
         }

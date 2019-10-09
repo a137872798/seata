@@ -21,7 +21,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * Policies for RejectedExecutionHandler
- * 拒绝策略
+ * 自定义的线程池拒绝策略
  *
  * @author guoyao
  */

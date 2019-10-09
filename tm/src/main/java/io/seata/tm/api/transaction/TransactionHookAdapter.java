@@ -16,7 +16,7 @@
 package io.seata.tm.api.transaction;
 
 /**
- * 事务钩子适配器
+ * 事务钩子适配器 这样用户只需要实现 必要的方法 而不是实现全部方法
  * @author guoyao
  * @date 2019/3/5
  */

@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Default global transaction.
- * 全局事务对象
+ * 全局事务对象  该对象负责开启事务 回滚事务等
  * @author sharajava
  */
 public class DefaultGlobalTransaction implements GlobalTransaction {
@@ -89,8 +89,15 @@ public class DefaultGlobalTransaction implements GlobalTransaction {
         begin(timeout, DEFAULT_GLOBAL_TX_NAME);
     }
 
+    /**
+     * 使用规定的超时时间 和事务名称开启事务
+     * @param timeout Given timeout in MILLISECONDS.
+     * @param name    Given name.  事务名称
+     * @throws TransactionException
+     */
     @Override
     public void begin(int timeout, String name) throws TransactionException {
+        // 如果是 事务发起者 将信息提交到TC 上 如果是参与者就是确保 xid 已经绑定在当前线程中
         if (role != GlobalTransactionRole.Launcher) {
             check();
             if (LOGGER.isDebugEnabled()) {
@@ -98,14 +105,20 @@ public class DefaultGlobalTransaction implements GlobalTransaction {
             }
             return;
         }
+
+        // 进入到这里代表是参与者
         if (xid != null) {
             throw new IllegalStateException();
         }
+        // 此时上下文还不能绑定 xid
         if (RootContext.getXID() != null) {
             throw new IllegalStateException();
         }
+        // 通过TM 开启事务 TM 又会通知 TC  这里会返回全局事务id
         xid = transactionManager.begin(null, null, name, timeout);
+        // 代表事务已经开启 默认是 Unknown
         status = GlobalStatus.Begin;
+        // 在本线程上绑定xid
         RootContext.bind(xid);
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Begin new global transaction [" + xid + "]");
@@ -113,8 +126,13 @@ public class DefaultGlobalTransaction implements GlobalTransaction {
 
     }
 
+    /**
+     * 提交全局事务  这里的逻辑跟 rollback 很接近
+     * @throws TransactionException
+     */
     @Override
     public void commit() throws TransactionException {
+        // 只有发起者能提交
         if (role == GlobalTransactionRole.Participant) {
             // Participant has no responsibility of committing
             if (LOGGER.isDebugEnabled()) {
@@ -138,8 +156,13 @@ public class DefaultGlobalTransaction implements GlobalTransaction {
 
     }
 
+    /**
+     * 通过 TM 对象 发送本全局事务id 通过TC 调配回滚全局事务
+     * @throws TransactionException
+     */
     @Override
     public void rollback() throws TransactionException {
+        // 如果当前角色是 参与者 不允许参与者 进行回滚
         if (role == GlobalTransactionRole.Participant) {
             // Participant has no responsibility of committing
             if (LOGGER.isDebugEnabled()) {
@@ -151,6 +174,7 @@ public class DefaultGlobalTransaction implements GlobalTransaction {
             throw new IllegalStateException();
         }
 
+        // 由发起者进行回滚
         status = transactionManager.rollback(xid);
         if (RootContext.getXID() != null) {
             if (xid.equals(RootContext.getXID())) {
@@ -176,6 +200,9 @@ public class DefaultGlobalTransaction implements GlobalTransaction {
         return xid;
     }
 
+    /**
+     * 不是发起者的话 必须确保 存在事务id
+     */
     private void check() {
         if (xid == null) {
             throw new ShouldNeverHappenException();

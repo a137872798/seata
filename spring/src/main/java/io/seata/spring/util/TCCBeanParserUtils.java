@@ -41,6 +41,7 @@ public class TCCBeanParserUtils {
      */
     public static boolean isTccAutoProxy(Object bean, String beanName, ApplicationContext applicationContext) {
         RemotingDesc remotingDesc = null;
+        // 判断是否是 远程 bean 也就是 标签中是否包含 <dubbo> <sofa> 等
         boolean isRemotingBean = parserRemotingServiceInfo(bean, beanName);
         //is remoting bean
         // 如果是 rpc框架中的远程bean 对象

@@ -64,6 +64,7 @@ public class NettyPoolableFactory implements KeyedPoolableObjectFactory<NettyPoo
      */
     @Override
     public Channel makeObject(NettyPoolKey key) {
+        // 将key 中存放的address 信息抽取出来 便于 进行连接
         InetSocketAddress address = NetUtil.toInetSocketAddress(key.getAddress());
             if (LOGGER.isInfoEnabled()) {
             LOGGER.info("NettyPool create channel to " + key);
@@ -73,6 +74,7 @@ public class NettyPoolableFactory implements KeyedPoolableObjectFactory<NettyPoo
         long start = System.currentTimeMillis();
         Object response;
         Channel channelToServer = null;
+        // key 上还携带了 注册信息 也就是每个RM/TM 在初始化完成后 调用init 会获取对应事务组下所有的server实例 并将自身信息注册上去
         if (null == key.getMessage()) {
             throw new FrameworkException(
                 "register msg is null, role:" + key.getTransactionRole().name());
@@ -81,10 +83,12 @@ public class NettyPoolableFactory implements KeyedPoolableObjectFactory<NettyPoo
             // 一般key上携带的就是 RM 注册消息 或者 TM 注册消息 这里就代表着 某个channel 一旦被初始化就发送一条注册消息到 server 上
             // 这里内部会使用一个超时时间去 阻塞等待结果
             response = rpcRemotingClient.sendAsyncRequestWithResponse(tmpChannel, key.getMessage());
+            // 判断注册是否成功
             if (!isResponseSuccess(response, key.getTransactionRole())) {
-                // 触发注册失败
+                // 触发注册失败  一般是直接抛出异常
                 rpcRemotingClient.onRegisterMsgFail(key.getAddress(), tmpChannel, response, key.getMessage());
             } else {
+                // 触发注册成功 就是缓存 channel 实际上本方法结束后也会缓存一次channel
                 channelToServer = tmpChannel;
                 rpcRemotingClient.onRegisterMsgSuccess(key.getAddress(), tmpChannel, response,
                     key.getMessage());
@@ -112,13 +116,14 @@ public class NettyPoolableFactory implements KeyedPoolableObjectFactory<NettyPoo
     private boolean isResponseSuccess(Object response, NettyPoolKey.TransactionRole transactionRole) {
         // 代表超时
         if (null == response) { return false; }
-        // 如果对应的 连接为 TM 则必须返回TM 响应消息
+        // 如果本身是 TM client 进行注册 必须返回 TM 响应结果
         if (transactionRole.equals(NettyPoolKey.TransactionRole.TMROLE)) {
             if (!(response instanceof RegisterTMResponse)) {
                 return false;
             }
-            // 该方法总是返回true 这啥意思
+            // identified 代表是否被确认 也就是本次注册请求是否成功
             return ((RegisterTMResponse) response).isIdentified();
+            // 要求响应结果为 RM
         } else if (transactionRole.equals(NettyPoolKey.TransactionRole.RMROLE)) {
             if (!(response instanceof RegisterRMResponse)) {
                 return false;

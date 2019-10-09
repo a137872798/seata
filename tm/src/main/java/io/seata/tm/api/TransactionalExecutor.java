@@ -71,13 +71,23 @@ public interface TransactionalExecutor {
 
     /**
      * The type Execution exception.
+     * 异常模板
      */
     class ExecutionException extends Exception {
 
+        /**
+         * 全局事务对象
+         */
         private GlobalTransaction transaction;
 
+        /**
+         * 对应失败类型
+         */
         private Code code;
 
+        /**
+         * 异常信息
+         */
         private Throwable originalException;
 
         /**

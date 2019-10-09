@@ -37,6 +37,9 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class DefaultRMHandler extends AbstractRMHandler {
 
+    /**
+     * 内部存放了基于 AT 和 TCC 的实现-
+     */
     protected static Map<BranchType, AbstractRMHandler> allRMHandlersMap
         = new ConcurrentHashMap<BranchType, AbstractRMHandler>();
 

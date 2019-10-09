@@ -47,7 +47,7 @@ import java.util.function.Function;
 public final class TmRpcClient extends AbstractRpcRemotingClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(TmRpcClient.class);
     /**
-     * 单例模式
+     * 单例模式  代表一个应用只需要 开启一个事务client 就可以
      */
     private static volatile TmRpcClient instance;
     private static final Configuration CONFIG = ConfigurationFactory.getInstance();
@@ -62,6 +62,12 @@ public final class TmRpcClient extends AbstractRpcRemotingClient {
      */
     public static boolean enableDegrade = false;
 
+    /**
+     * 根据config 对象初始化 TM client
+     * @param nettyClientConfig
+     * @param eventExecutorGroup
+     * @param messageExecutor
+     */
     private TmRpcClient(NettyClientConfig nettyClientConfig,
                         EventExecutorGroup eventExecutorGroup,
                         ThreadPoolExecutor messageExecutor) {
@@ -84,14 +90,16 @@ public final class TmRpcClient extends AbstractRpcRemotingClient {
 
     /**
      * Gets instance.
-     *
+     * 初始化 TM client 对象
      * @return the instance
      */
     public static TmRpcClient getInstance() {
         if (null == instance) {
             synchronized (TmRpcClient.class) {
                 if (null == instance) {
+                    // 生成通信相关的配置对象
                     NettyClientConfig nettyClientConfig = new NettyClientConfig();
+                    // 生成一个线程池对象   该线程池是用来处理消息的
                     final ThreadPoolExecutor messageExecutor = new ThreadPoolExecutor(
                         nettyClientConfig.getClientWorkerThreads(), nettyClientConfig.getClientWorkerThreads(),
                         KEEP_ALIVE_TIME, TimeUnit.SECONDS,
@@ -130,6 +138,7 @@ public final class TmRpcClient extends AbstractRpcRemotingClient {
     @Override
     public void init() {
         if (initialized.compareAndSet(false, true)) {
+            // 这里会触发静态对象的初始化   enableDegrade 代表能否降级   至于配置是怎么获取的 先不细看
             enableDegrade = CONFIG.getBoolean(ConfigurationKeys.SERVICE_PREFIX + ConfigurationKeys.ENABLE_DEGRADE_POSTFIX);
             super.init();
         }
@@ -152,12 +161,16 @@ public final class TmRpcClient extends AbstractRpcRemotingClient {
     @Override
     protected Function<String, NettyPoolKey> getPoolKeyFunction() {
         return (severAddress) -> {
-            // 生成注册 TM 的消息  看来每个 TM Client 对象在创建时 会注册到server 上
+            // 生成注册 TM 的消息  看来每个 TM Client 对象在创建时 会注册到server(TC) 上
             RegisterTMRequest message = new RegisterTMRequest(applicationId, transactionServiceGroup);
             return new NettyPoolKey(NettyPoolKey.TransactionRole.TMROLE, severAddress, message);
         };
     }
-    
+
+    /**
+     * 获取事务组 就是直接将初始化时设置的 事务组返回
+     * @return
+     */
     @Override
     public String getTransactionServiceGroup() {
         return transactionServiceGroup;
@@ -165,6 +178,7 @@ public final class TmRpcClient extends AbstractRpcRemotingClient {
 
     /**
      * 当注册成功时触发
+     * 因为 TM 不向 RM 同时要上报 resource信息 所以直接缓存 channel就好
      * @param serverAddress  the server address
      * @param channel        the channel
      * @param response       the response 代表响应消息

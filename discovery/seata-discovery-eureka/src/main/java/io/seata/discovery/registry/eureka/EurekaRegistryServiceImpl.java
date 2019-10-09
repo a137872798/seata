@@ -212,7 +212,7 @@ public class EurekaRegistryServiceImpl implements RegistryService<EurekaEventLis
                 for (InstanceInfo instance : instances) {
                     addressSet.add(new InetSocketAddress(instance.getIPAddr(), instance.getPort()));
                 }
-                // 以应用名为单位 同一个应用名的属于同一个集群
+                // 以应用名为单位 同一个应用名的属于同一个集群  这里的应用名就是 事务组名 server 以事务组为单位在注册中心进行注册
                 collect.put(application.getName(), addressSet);
             }
         }

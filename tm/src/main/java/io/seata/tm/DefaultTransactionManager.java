@@ -37,24 +37,43 @@ import io.seata.core.rpc.netty.TmRpcClient;
 
 /**
  * The type Default transaction manager.
- *
+ * TM 实现类  seats 通过该类向TC 发出各种指令
  * @author sharajava
  */
 public class DefaultTransactionManager implements TransactionManager {
 
+    /**
+     * TM 开启事务 实际上就是通知到TC 上
+     * @param applicationId           ID of the application who begins this transaction.
+     * @param transactionServiceGroup ID of the transaction service group.
+     * @param name                    Give a name to the global transaction.
+     * @param timeout                 Timeout of the global transaction.
+     * @return
+     * @throws TransactionException
+     */
     @Override
     public String begin(String applicationId, String transactionServiceGroup, String name, int timeout)
         throws TransactionException {
+        // 创建一个 开启事务的请求对象 设置事务名称和 超时时间
         GlobalBeginRequest request = new GlobalBeginRequest();
         request.setTransactionName(name);
         request.setTimeout(timeout);
+        // 同步处理请求对象
         GlobalBeginResponse response = (GlobalBeginResponse)syncCall(request);
+        // 失败抛出异常
         if (response.getResultCode() == ResultCode.Failed) {
             throw new TmTransactionException(TransactionExceptionCode.BeginFailed, response.getMsg());
         }
+        // 生成全局事务id
         return response.getXid();
     }
 
+    /**
+     * 提交分布式事务
+     * @param xid XID of the global transaction.
+     * @return
+     * @throws TransactionException
+     */
     @Override
     public GlobalStatus commit(String xid) throws TransactionException {
         GlobalCommitRequest globalCommit = new GlobalCommitRequest();
@@ -63,10 +82,17 @@ public class DefaultTransactionManager implements TransactionManager {
         return response.getGlobalStatus();
     }
 
+    /**
+     * 在全局事务中 如果某个分支出现了异常会不断向上传递 直到 发起者 之后根据线程绑定的 xid 进行事务回滚
+     * @param xid XID of the global transaction
+     * @return
+     * @throws TransactionException
+     */
     @Override
     public GlobalStatus rollback(String xid) throws TransactionException {
         GlobalRollbackRequest globalRollback = new GlobalRollbackRequest();
         globalRollback.setXid(xid);
+        // 同步发送 回滚请求到 TC
         GlobalRollbackResponse response = (GlobalRollbackResponse)syncCall(globalRollback);
         return response.getGlobalStatus();
     }
@@ -79,6 +105,12 @@ public class DefaultTransactionManager implements TransactionManager {
         return response.getGlobalStatus();
     }
 
+    /**
+     * 同步下 将 开启全局事务请求发送到TC 上
+     * @param request
+     * @return
+     * @throws TransactionException
+     */
     private AbstractTransactionResponse syncCall(AbstractTransactionRequest request) throws TransactionException {
         try {
             return (AbstractTransactionResponse)TmRpcClient.getInstance().sendMsgWithResponse(request);

@@ -20,7 +20,7 @@ import io.seata.core.rpc.RpcContext;
 
 /**
  * The type Global begin request.
- *
+ * 代表开启一个全局事务的请求对象
  * @author jimin.jm @alibaba-inc.com
  */
 public class GlobalBeginRequest extends AbstractTransactionRequestToTC {

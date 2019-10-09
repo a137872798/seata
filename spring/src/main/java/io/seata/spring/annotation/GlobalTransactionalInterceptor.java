@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 
 /**
  * The type Global transactional interceptor.
- * 拦截器对象 就是在这里插入 全局事务的逻辑
+ * 拦截器对象 scanner 对象会将携带 GlobalTransactional 注解相关的类用该对象进行处理
  * @author jimin.jm @alibaba-inc.com
  */
 public class GlobalTransactionalInterceptor implements MethodInterceptor {
@@ -107,7 +107,7 @@ public class GlobalTransactionalInterceptor implements MethodInterceptor {
     }
 
     /**
-     * 处理全局锁
+     * 针对使用 @GlobalLock 的方法进行增强
      * @param methodInvocation
      * @return
      * @throws Exception
@@ -128,7 +128,7 @@ public class GlobalTransactionalInterceptor implements MethodInterceptor {
     }
 
     /**
-     * 使用模板执行
+     * 针对使用 @GlobalTransactional 注解的方法进行增强
      * @param methodInvocation
      * @param globalTrxAnno
      * @return
@@ -137,17 +137,20 @@ public class GlobalTransactionalInterceptor implements MethodInterceptor {
     private Object handleGlobalTransaction(final MethodInvocation methodInvocation,
                                            final GlobalTransactional globalTrxAnno) throws Throwable {
         try {
+            // 返回一个使用模板修饰的 对象  这里传入一个回调对象封装了方法真正执行的逻辑
             return transactionalTemplate.execute(new TransactionalExecutor() {
                 @Override
                 public Object execute() throws Throwable {
                     return methodInvocation.proceed();
                 }
 
+                // 获取事务注解上的名字
                 public String name() {
                     String name = globalTrxAnno.name();
                     if (!StringUtils.isNullOrEmpty(name)) {
                         return name;
                     }
+                    // 将方法名转换成名字
                     return formatMethod(methodInvocation.getMethod());
                 }
 
@@ -177,6 +180,7 @@ public class GlobalTransactionalInterceptor implements MethodInterceptor {
                     return transactionInfo;
                 }
             });
+            // 根据返回的事务执行异常走不同的逻辑
         } catch (TransactionalExecutor.ExecutionException e) {
             TransactionalExecutor.Code code = e.getCode();
             switch (code) {

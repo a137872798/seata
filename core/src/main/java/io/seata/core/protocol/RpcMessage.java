@@ -20,7 +20,7 @@ import java.util.Map;
 
 /**
  * The type Rpc message.
- * 远程消息
+ * client 和 server（RM/TM <-> TC） 之间交互的消息实体
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /9/14
  */

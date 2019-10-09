@@ -27,7 +27,7 @@ public abstract class AbstractIdentifyResponse extends AbstractResultMessage {
     private String extraData;
 
     /**
-     * 是否唯一
+     * 是否被确认
      */
     private boolean identified;
 

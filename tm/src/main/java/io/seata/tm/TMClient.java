@@ -26,12 +26,14 @@ public class TMClient {
 
     /**
      * Init.
+     * 初始化TM 客户端对象
      *
-     * @param applicationId           the application id
-     * @param transactionServiceGroup the transaction service group
+     * @param applicationId           the application id   传入应用名
+     * @param transactionServiceGroup the transaction service group   传入事务组
      */
     public static void init(String applicationId, String transactionServiceGroup) {
         TmRpcClient tmRpcClient = TmRpcClient.getInstance(applicationId, transactionServiceGroup);
+        // 进行初始化
         tmRpcClient.init();
     }
 

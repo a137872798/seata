@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * the type data source proxy holder
- * 数据源代理对象
+ * 关联<数据源,数据源代理>对象
  * @author xingfudeshi@gmail.com
  * @date 2019/08/23
  */
