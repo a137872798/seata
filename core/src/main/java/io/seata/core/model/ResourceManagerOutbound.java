@@ -19,13 +19,14 @@ import io.seata.core.exception.TransactionException;
 
 /**
  * Resource Manager: send outbound request to TC.
- * 获取RM 的数据
+ * 由 RM 向 TC 发出的指令
  * @author sharajava
  */
 public interface ResourceManagerOutbound {
 
     /**
      * Branch register long.
+     * 注册某个 分事务 同时返回分事务id
      *
      * @param branchType the branch type
      * @param resourceId the resource id
@@ -53,7 +54,7 @@ public interface ResourceManagerOutbound {
 
     /**
      * Lock query boolean.
-     *
+     * 查询能否加锁
      * @param branchType the branch type
      * @param resourceId the resource id
      * @param xid        the xid

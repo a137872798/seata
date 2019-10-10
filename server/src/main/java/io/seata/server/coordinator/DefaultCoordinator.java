@@ -79,7 +79,7 @@ import static io.seata.core.exception.TransactionExceptionCode.FailedToSendBranc
 
 /**
  * The type Default coordinator.
- * 默认的候选者
+ * TC 对象 用于协调全局事务 收集资源信息 以及下发回滚请求等操作
  */
 public class DefaultCoordinator extends AbstractTCInboundHandler
     implements TransactionMessageHandler, ResourceManagerInbound, Disposable {

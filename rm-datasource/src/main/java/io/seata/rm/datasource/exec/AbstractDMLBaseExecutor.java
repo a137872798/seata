@@ -59,7 +59,7 @@ public abstract class AbstractDMLBaseExecutor<T, S extends Statement> extends Ba
     @Override
     public T doExecute(Object... args) throws Throwable {
         AbstractConnectionProxy connectionProxy = statementProxy.getConnectionProxy();
-        // 如果开启自动提交 使用自动提交的方式进行执行
+        // 如果开启自动提交 使用自动提交的方式进行执行  实际上这里应该都会关闭自动提交 (因为要将 原语句 和 生成的undo日志一起提交)
         if (connectionProxy.getAutoCommit()) {
             return executeAutoCommitTrue(args);
         } else {
@@ -75,13 +75,13 @@ public abstract class AbstractDMLBaseExecutor<T, S extends Statement> extends Ba
      * @throws Exception the exception
      */
     protected T executeAutoCommitFalse(Object[] args) throws Exception {
-        // 获取上一个记录
+        // 生成快照 便于回滚
         TableRecords beforeImage = beforeImage();
-        // callback 内包含实际的执行逻辑  这里使用会话对象和 参数 结果应该是返回  resultSet
+        // 原生的jdbc执行
         T result = statementCallback.execute(statementProxy.getTargetStatement(), args);
-        // 使用before 对象生成after 对象
+        // 生成快照 便于回滚
         TableRecords afterImage = afterImage(beforeImage);
-        // 生成撤销日志  这里就是保存到connectionContext 的一个set中
+        // 生成undo 日志
         prepareUndoLog(beforeImage, afterImage);
         return result;
     }
@@ -96,11 +96,13 @@ public abstract class AbstractDMLBaseExecutor<T, S extends Statement> extends Ba
     protected T executeAutoCommitTrue(Object[] args) throws Throwable {
         AbstractConnectionProxy connectionProxy = statementProxy.getConnectionProxy();
         try {
-            // 首先关闭自动提交
+            // 首先关闭自动提交 因为在开启全局事务的前提下 要将原语句与 undo 日志放到同一个本地事务中
             connectionProxy.setAutoCommit(false);
             // 构建重试对象并执行查询逻辑
             return new LockRetryPolicy(connectionProxy.getTargetConnection()).execute(() -> {
+                // 复用非自动提交的逻辑
                 T result = executeAutoCommitFalse(args);
+                // connectionProxy 也对提交做了增强 每个本地事务的提交都需要将结果上报到TC 上
                 connectionProxy.commit();
                 return result;
             });
@@ -108,6 +110,7 @@ public abstract class AbstractDMLBaseExecutor<T, S extends Statement> extends Ba
             // when exception occur in finally,this exception will lost, so just print it here
             LOGGER.error("execute executeAutoCommitTrue error:{}", e.getMessage(), e);
             if (!LockRetryPolicy.isLockRetryPolicyBranchRollbackOnConflict()) {
+                // 回滚结果要上报到 TC 上
                 connectionProxy.getTargetConnection().rollback();
             }
             throw e;
@@ -161,7 +164,7 @@ public abstract class AbstractDMLBaseExecutor<T, S extends Statement> extends Ba
             if (LOCK_RETRY_POLICY_BRANCH_ROLLBACK_ON_CONFLICT) {
                 return doRetryOnLockConflict(callable);
             } else {
-                // 直接执行
+                // 直接执行  如果获取全局锁失败会 抛出异常 而且不进行重试
                 return callable.call();
             }
         }

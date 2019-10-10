@@ -47,6 +47,7 @@ public class ConnectionProxy extends AbstractConnectionProxy {
 
     /**
      * 包含一个上下文 每次调用getConnection 都会生成一个新的 代理对象也就是 对应一个专门的上下文对象
+     * 该对象内部可以维护一个 xid 代表该connection 正在处理哪个全局事务
      */
     private ConnectionContext context = new ConnectionContext();
 
@@ -110,10 +111,11 @@ public class ConnectionProxy extends AbstractConnectionProxy {
     public void checkLock(String lockKeys) throws SQLException {
         // Just check lock without requiring lock by now.
         try {
-            // 判断是否可锁
+            // 判断是否可锁  是通过与TC交互获取结果的
             boolean lockable = DefaultResourceManager.get().lockQuery(BranchType.AT,
                 getDataSourceProxy().getResourceId(), context.getXid(), lockKeys);
             if (!lockable) {
+                // 已上锁 抛出锁冲突异常
                 throw new LockConflictException();
             }
         } catch (TransactionException e) {
@@ -187,14 +189,14 @@ public class ConnectionProxy extends AbstractConnectionProxy {
     }
 
     /**
-     * 执行 commit 方法 mybatis 中 实现各种加工逻辑 是通过装饰器模式 而这里 是代理模式
+     * 本地事务的提交 还要上报到TC
      * @throws SQLException
      */
     @Override
     public void commit() throws SQLException {
         try {
+            // 该对象在提交遇到异常时 会不断重试 直到成功
             LOCK_RETRY_POLICY.execute(() -> {
-                // 传入一个 代表提交的call 对象
                 doCommit();
                 return null;
             });
@@ -210,16 +212,17 @@ public class ConnectionProxy extends AbstractConnectionProxy {
      * @throws SQLException
      */
     private void doCommit() throws SQLException {
-        // 如果是全局事务  应该是连同下面所有的 branch 都提交
+        // 如果是全局事务  将本结果上报到TC
         if (context.inGlobalTransaction()) {
-            // 处理全局事务提交
+            // 处理全局事务中提交
             processGlobalTransactionCommit();
             // 判断是否需要 获取全局锁
         } else if (context.isGlobalLockRequire()) {
+            // TODO
             // 在获取全局锁的基础上 执行本地提交
             processLocalCommitWithGlobalLocks();
         } else {
-            // 不需要就直接提交就好
+            // 非全局事务相关注解修饰 正常处理
             targetConnection.commit();
         }
     }
@@ -247,36 +250,42 @@ public class ConnectionProxy extends AbstractConnectionProxy {
      */
     private void processGlobalTransactionCommit() throws SQLException {
         try {
-            // 将本次操作 作为全局事务中的 一个 branch 进行注册
-            // 都要提交了 还注册什么???
+            // 将全局事务中的该分支 注册到TC 同时会将本事务中的主键上锁 配合 for update的查询 锁字段实现 读已提交
             register();
         } catch (TransactionException e) {
+            // 判断是否是锁冲突异常   也就是这里实现了 不同的全局事务之间的写事务隔离  因为某个全局事务开始对某个字段进行修改时 其他事务是不能修改它的 但是允许读未提交
+            // 一旦使用了 for update 实现类  也会变成 读已提交 也就是 必须确保字段还未加锁 有没有可能发生死锁呢???  虽然这里的重试是有次数的但是 会大幅度降低性能
             recognizeLockKeyConflictException(e, context.buildLockKeys());
         }
 
         try {
-            // 将context 当前维护的所有 撤销日志 刷盘到某个地方
+            // 在执行比如 insert delete 时 会通过 前后快照生成回滚日志 (具体生成规则没细看)
             if (context.hasUndoLog()) {
+                // 实际上就是将 undo 日志保存到 本地数据库中
                 UndoLogManagerFactory.getUndoLogManager(this.getDbType()).flushUndoLogs(this);
             }
             // 进行提交
             targetConnection.commit();
         } catch (Throwable ex) {
             LOGGER.error("process connectionProxy commit error: {}", ex.getMessage(), ex);
+            // 代表提交过程出现异常 通知TC 进行回滚·
             report(false);
             throw new SQLException(ex);
         }
+        // 提交成功情况下 通知 TC 完成了本地事务
         report(true);
         context.reset();
     }
 
     /**
-     * 将本事务进行注册
+     * 将本事务注册到TC 上  注意这里提交了 lockKeys 看来某个全局事务开始执行时关联到的所有主键就会被加锁 这样其他 全局事务尝试调用 for update 时就会发现
+     * 相关主键被加锁 就不断自旋  实现 读已提交
      * @throws TransactionException
      */
     private void register() throws TransactionException {
         Long branchId = DefaultResourceManager.get().branchRegister(BranchType.AT, getDataSourceProxy().getResourceId(),
             null, context.getXid(), null, context.buildLockKeys());
+        // 将返回的分事务id 设置到上下文中
         context.setBranchId(branchId);
     }
 
@@ -304,10 +313,16 @@ public class ConnectionProxy extends AbstractConnectionProxy {
         targetConnection.setAutoCommit(autoCommit);
     }
 
+    /**
+     * 根据本地事务是否提交成功 将结果通知到TC
+     * @param commitDone
+     * @throws SQLException
+     */
     private void report(boolean commitDone) throws SQLException {
         int retry = REPORT_RETRY_COUNT;
         while (retry > 0) {
             try {
+                // 将本次结果提交到 TC 上 commitDone 为  true 代表一阶段成功 否则一阶段失败
                 DefaultResourceManager.get().branchReport(BranchType.AT, context.getXid(), context.getBranchId(),
                     (commitDone ? BranchStatus.PhaseOne_Done : BranchStatus.PhaseOne_Failed), null);
                 return;
@@ -357,7 +372,7 @@ public class ConnectionProxy extends AbstractConnectionProxy {
             while (true) {
                 try {
                     return callable.call();
-                    // 捕获冲突异常
+                    // 捕获锁冲突异常  只有该异常会进行自旋重试
                 } catch (LockConflictException lockConflict) {
                     // 处理异常对象 由子类实现
                     onException(lockConflict);

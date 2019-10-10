@@ -46,11 +46,12 @@ public abstract class AbstractResourceManager implements ResourceManager {
 
     /**
      * registry branch record
-     * 记录 分布式事务中一个子事务的信息
+     * 将某个全局事务中的分事务 注册到TC 上 同时会将 相关主键加锁
      * @param branchType the branch type  代表是基于 AT 还是 TCC
      * @param resourceId the resource id 发送的资源id
      * @param clientId   the client id  本客户端id
      * @param xid        the xid   对应到哪个事务
+     * @param applicationData 默认为null
      * @param lockKeys   the lock keys
      * @return
      * @throws TransactionException
@@ -60,6 +61,7 @@ public abstract class AbstractResourceManager implements ResourceManager {
         try {
             BranchRegisterRequest request = new BranchRegisterRequest();
             request.setXid(xid);
+            // 代表需要加锁的字段
             request.setLockKey(lockKeys);
             request.setResourceId(resourceId);
             request.setBranchType(branchType);
@@ -82,11 +84,11 @@ public abstract class AbstractResourceManager implements ResourceManager {
 
     /**
      * report branch status
-     * 报告子事务状态
+     * 将全局事务下 某个事务的执行结果上报给TC
      * @param branchType      the branch type
      * @param xid             the xid
      * @param branchId        the branch id
-     * @param status          the status
+     * @param status          the status  代表 一阶段成功 或者一阶段失败
      * @param applicationData the application data
      * @throws TransactionException
      */
@@ -96,7 +98,6 @@ public abstract class AbstractResourceManager implements ResourceManager {
             BranchReportRequest request = new BranchReportRequest();
             request.setXid(xid);
             request.setBranchId(branchId);
-            // 设置状态并发送
             request.setStatus(status);
             request.setApplicationData(applicationData);
 

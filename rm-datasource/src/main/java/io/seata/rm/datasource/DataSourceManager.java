@@ -77,7 +77,8 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
     }
 
     /**
-     * 加锁查询数据
+     * 查询对应的锁语句是否已经生成  对应的应用场景为 全局事务中某个单一事务使用 for update 查询 这里不仅要实现本地事务的 读已提交 还要在全局事务范围内保证读已提交
+     * 手段就是 往TC 上发送一个加锁语句 这样不同的全局事务之间就能做到事务隔离了
      * @param branchType the branch type
      * @param resourceId the resource id
      * @param xid        the xid
@@ -89,28 +90,27 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
     public boolean lockQuery(BranchType branchType, String resourceId, String xid, String lockKeys)
         throws TransactionException {
         try {
-            // 创建一个针对全局事务 申请上锁对象
+            // 创建一个查询全局锁的请求对象
             GlobalLockQueryRequest request = new GlobalLockQueryRequest();
             request.setXid(xid);
             request.setLockKey(lockKeys);
             request.setResourceId(resourceId);
 
             GlobalLockQueryResponse response = null;
-            // 如果当前正处在一个 全局事务中 就是看本线程是否持有了某个东西
+            // 判断当前上下文 是否设置了xid
             if (RootContext.inGlobalTransaction()) {
-                // 发送获取锁的请求 在send 方法内部会调用 loadBalance 选择一个合适的server地址并发送数据
-                // 注意 client 对象并不代表 连接对象  而是在内部维护了一个ChannelManager 对象 维护了通往server 的所有连接
-                // 可以节省创建channel 的资源消耗
+                // 同步获取查询锁的结果  这里也是选择同一事务组下的某个address (那么 TC 之间是如何做数据同步的???)
                 response = (GlobalLockQueryResponse)RmRpcClient.getInstance().sendMsgWithResponse(request);
             // 如果在本线程中绑定了某个标识(意味着需要获取全局事务锁)
             } else if (RootContext.requireGlobalLock()) {
-                // 通过均衡负载 获取合适的server 并从 channelManager 中获取channel 对象
                 response = (GlobalLockQueryResponse)RmRpcClient.getInstance().sendMsgWithResponse(loadBalance(),
                     request, NettyClientConfig.getRpcRequestTimeout());
             } else {
+                // 其余场景不允许出现
                 throw new RuntimeException("unknow situation!");
             }
 
+            // 通信异常
             if (response.getResultCode() == ResultCode.Failed) {
                 throw new TransactionException(response.getTransactionExceptionCode(),
                     "Response[" + response.getMsg() + "]");

@@ -21,7 +21,7 @@ import io.seata.rm.datasource.StatementProxy;
 
 /**
  * The type Plain executor.
- * 简单的 执行器
+ * 该对象直接使用原生的 jdbc 进行dao层交互与处理
  * @author sharajava
  *
  * @param <T> the type parameter

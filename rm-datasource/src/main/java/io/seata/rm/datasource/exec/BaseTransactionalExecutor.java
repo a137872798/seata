@@ -103,7 +103,7 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
             statementProxy.getConnectionProxy().bind(xid);
         }
 
-        // 判断是否需要全局锁
+        // 判断是否需要全局锁  应该是拦截器在处理 @GlobalLock 注解相关的方法时 设置的
         if (RootContext.requireGlobalLock()) {
             statementProxy.getConnectionProxy().setGlobalLockRequire(true);
         } else {
@@ -227,17 +227,17 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
      * @throws SQLException the sql exception
      */
     protected void prepareUndoLog(TableRecords beforeImage, TableRecords afterImage) throws SQLException {
+        // 代表前后都没有数据
         if (beforeImage.getRows().size() == 0 && afterImage.getRows().size() == 0) {
             return;
         }
 
         ConnectionProxy connectionProxy = statementProxy.getConnectionProxy();
 
-        // 这里什么意思 如果是DELETE 类型就返回before 否则 返回after???
         TableRecords lockKeyRecords = sqlRecognizer.getSQLType() == SQLType.DELETE ? beforeImage : afterImage;
         // 构建锁语句
         String lockKeys = buildLockKey(lockKeyRecords);
-        // 这里是设置到 connectionContext 的 一个 buffer 中(一个set结构)
+        // 回滚日志会设置到一个 buffer 中 
         connectionProxy.appendLockKey(lockKeys);
 
         // 通过 before 和after 对象生成 一个 SQLUndoLog 对象

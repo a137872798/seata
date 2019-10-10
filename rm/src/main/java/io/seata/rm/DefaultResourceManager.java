@@ -96,6 +96,17 @@ public class DefaultResourceManager implements ResourceManager {
         return getResourceManager(branchType).branchRollback(branchType, xid, branchId, resourceId, applicationData);
     }
 
+    /**
+     * 将某个分支事务 注册到TC 上 同时会将该事务中需要的主键加锁
+     * @param branchType the branch type
+     * @param resourceId the resource id
+     * @param clientId   the client id
+     * @param xid        the xid
+     * @param applicationData the context
+     * @param lockKeys   the lock keys
+     * @return
+     * @throws TransactionException
+     */
     @Override
     public Long branchRegister(BranchType branchType, String resourceId,
                                String clientId, String xid, String applicationData, String lockKeys)
@@ -104,12 +115,30 @@ public class DefaultResourceManager implements ResourceManager {
             lockKeys);
     }
 
+    /**
+     * 将结果通知到 TC
+     * @param branchType      the branch type
+     * @param xid             the xid
+     * @param branchId        the branch id
+     * @param status          the status
+     * @param applicationData the application data
+     * @throws TransactionException
+     */
     @Override
     public void branchReport(BranchType branchType, String xid, long branchId, BranchStatus status,
                              String applicationData) throws TransactionException {
         getResourceManager(branchType).branchReport(branchType, xid, branchId, status, applicationData);
     }
 
+    /**
+     * 通过 RM 与 TC 交互 判断是否已经加锁
+     * @param branchType the branch type
+     * @param resourceId the resource id
+     * @param xid        the xid
+     * @param lockKeys   the lock keys
+     * @return
+     * @throws TransactionException
+     */
     @Override
     public boolean lockQuery(BranchType branchType, String resourceId,
                              String xid, String lockKeys) throws TransactionException {
