@@ -20,7 +20,7 @@ import java.util.List;
 
 /**
  * the transaction log store
- * 存储事务日志接口
+ * 存储/访问事务日志接口
  * @author zhangsen
  * @date 2019 /3/26
  */

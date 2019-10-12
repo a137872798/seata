@@ -21,12 +21,16 @@ package io.seata.core.event;
  * @author zhengyangyong
  */
 public interface EventBus {
+    /**
+     * 为 事件总线设置一个订阅者
+     * @param subscriber
+     */
     void register(Object subscriber);
 
     void unregister(Object subscriber);
 
     /**
-     * 应该是将事件传递到下一环
+     * 往总线中插入一个事件
      * @param event
      */
     void post(Event event);

@@ -55,7 +55,7 @@ public interface ServerMessageSender {
 
     /**
      * Sync call to RM
-     * 非超时发送
+     * 同步发送
      * @param resourceId Resource ID
      * @param clientId   Client ID
      * @param message    Request message

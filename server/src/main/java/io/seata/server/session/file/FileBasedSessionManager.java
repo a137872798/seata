@@ -53,23 +53,27 @@ public class FileBasedSessionManager extends DefaultSessionManager implements Re
 
     /**
      * Instantiates a new File based session manager.
-     *
-     * @param name                 the name
-     * @param sessionStoreFilePath the session store file path
+     * 初始化基于文件的存储
+     * @param name                 the name               文件名
+     * @param sessionStoreFilePath the session store file path     存储路径
      * @throws IOException the io exception
      */
     public FileBasedSessionManager(String name, String sessionStoreFilePath) throws IOException {
         super(name);
-        // 也是委托吗
+        // 创建基于文件的 事务存储对象
         transactionStoreManager = EnhancedServiceLoader.load(TransactionStoreManager.class, StoreMode.FILE.name(),
             new Class[] {String.class, SessionManager.class},
             new Object[] {sessionStoreFilePath + File.separator + name, this});
     }
 
+    /**
+     * 一般是当 server重启时 重新加载数据
+     */
     @Override
     public void reload() {
+        // 从文件中重新读取 会话数据 并保存到 二级缓存中
         restoreSessions();
-        // 清除掉已经完成的 session 对象
+        // 清除掉已经完成的 session 对象 (因为从文件中加载的应该是全部数据)
         washSessions();
     }
 
@@ -79,7 +83,7 @@ public class FileBasedSessionManager extends DefaultSessionManager implements Re
     private void restoreSessions() {
         Map<Long, BranchSession> unhandledBranchBuffer = new HashMap<>();
 
-        // isHistory 分别以 true 和 false 执行一次  从 TSM 中找到 session 对象并更新本对象内置map 的 数据
+        // isHistory 分别以 true 和 false 执行一次  从 TSM 中找到 session 对象并更新本对象内置map (本地二级缓存)的 数据  unhandledBranchBuffer 内存放的是没有找到的分事务
         restoreSessions(true, unhandledBranchBuffer);
         restoreSessions(false, unhandledBranchBuffer);
 
@@ -148,15 +152,17 @@ public class FileBasedSessionManager extends DefaultSessionManager implements Re
         if (!(transactionStoreManager instanceof ReloadableStore)) {
             return;
         }
-        // 还有数据的情况就不断的 读取
+        // 还有数据的情况就不断的 读取  根据 isHistory 判断读取 历史文件还是 正常文件
         while (((ReloadableStore)transactionStoreManager).hasRemaining(isHistory)) {
             List<TransactionWriteStore> stores = ((ReloadableStore)transactionStoreManager).readWriteStore(READ_SIZE,
                 isHistory);
+            // 将读取出来的数据 保存到 stores 中
             restore(stores, unhandledBranchBuffer);
         }
     }
 
     /**
+     * 将TrasncationWriteStore 转换成 BranchSession 并保存到对应容器中  （TransactionWriteStore 可能是全局事务 也可能是分支事务）
      * @param stores
      * @param unhandledBranchSessions   当该分支事务所属的global事务不存在时 加入到map中
      */
@@ -170,6 +176,7 @@ public class FileBasedSessionManager extends DefaultSessionManager implements Re
             // 获取更大的id
             maxRecoverId = getMaxId(maxRecoverId, sessionStorable);
             switch (logOperation) {
+                // 如果是针对全局事务的增加或者更新
                 case GLOBAL_ADD:
                 case GLOBAL_UPDATE: {
                     GlobalSession globalSession = (GlobalSession)sessionStorable;
@@ -181,7 +188,7 @@ public class FileBasedSessionManager extends DefaultSessionManager implements Re
                     }
                     // 找到对应的globalsession
                     GlobalSession foundGlobalSession = sessionMap.get(globalSession.getXid());
-                    // 代表是add
+                    // 代表是 这里先加入到内存中 是作为一种二级缓存吧 避免 每次必须通过文件访问数据 推测有个异步线程将内存中的数据写入到 文件中
                     if (foundGlobalSession == null) {
                         sessionMap.put(globalSession.getXid(), globalSession);
                     } else {

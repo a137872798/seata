@@ -109,7 +109,7 @@ public abstract class AbstractRpcRemotingServer extends AbstractRpcRemoting impl
 
     /**
      * Instantiates a new Rpc remoting server.
-     *
+     * 通过配置对象 和 消费消息的线程池进行初始化
      * @param nettyServerConfig the netty server config
      * @param messageExecutor   the message executor
      * @param handlers          the handlers
@@ -118,6 +118,7 @@ public abstract class AbstractRpcRemotingServer extends AbstractRpcRemoting impl
                                      final ThreadPoolExecutor messageExecutor, final ChannelHandler... handlers) {
         // 设置消息线程池
         super(messageExecutor);
+        // 创建 引导程序
         this.serverBootstrap = new ServerBootstrap();
         this.nettyServerConfig = nettyServerConfig;
         // 是否支持 Epoll 支持的话 使用性能更高的 eventLoopGroup

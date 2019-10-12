@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Log store data base dao.
- * 这里只是将 代表锁的记录换成了 事务日志
+ * 事务信息持久化对象
  * @author zhangsen
  * @date 2019 /4/2
  */
@@ -91,15 +91,19 @@ public class LogStoreDataBaseDAO implements LogStore, Initialize {
 
     /**
      * Instantiates a new Log store data base dao.
-     *
+     * 使用指定数据源进行初始化
      * @param logStoreDataSource the log store data source
      */
     public LogStoreDataBaseDAO(DataSource logStoreDataSource) {
         this.logStoreDataSource = logStoreDataSource;
     }
 
+    /**
+     * 基于SPI 加载会触发该方法
+     */
     @Override
     public void init() {
+        // 获取对应的表名 和数据库类型
         globalTable = CONFIG.getConfig(ConfigurationKeys.STORE_DB_GLOBAL_TABLE,
             ConfigurationKeys.STORE_DB_GLOBAL_DEFAULT_TABLE);
         brachTable = CONFIG.getConfig(ConfigurationKeys.STORE_DB_BRANCH_TABLE,
@@ -527,6 +531,7 @@ public class LogStoreDataBaseDAO implements LogStore, Initialize {
 
     /**
      * the public modifier only for test
+     * 获取该表的字段信息  属于jdbc编程 先不细看
      */
     public void initTransactionNameSize() {
         ColumnInfo columnInfo = queryTableStructure(globalTable, TRANSACTION_NAME_KEY);
@@ -534,6 +539,7 @@ public class LogStoreDataBaseDAO implements LogStore, Initialize {
             LOGGER.warn("{} table or {} column not found", globalTable, TRANSACTION_NAME_KEY);
             return ;
         }
+        // 设置 该表的列数（有多少字段）
         this.transactionNameColumnSize = columnInfo.getColumnSize();
     }
 

@@ -86,7 +86,7 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
 
     /**
      * Instantiates a new Abstract rpc server.
-     *
+     * 通过一个处理消息的线程池进行初始化
      * @param messageExecutor the message executor
      */
     public RpcServer(ThreadPoolExecutor messageExecutor) {
@@ -216,7 +216,7 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
     /**
      * Send request with response object.
      * send syn request for rm
-     * 发送同步消息  必须要设置超时时间才会调用get() 并进入阻塞
+     * 同步响应消息给RM
      * @param resourceId the db key
      * @param clientId   the client ip
      * @param message    the message
@@ -227,12 +227,14 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
     @Override
     public Object sendSyncRequest(String resourceId, String clientId, Object message,
                                   long timeout) throws TimeoutException {
+        // 这里一定要匹配到 某个channel 即使 不同ip 不同应用 但是这样有什么意义吗  响应结果返回给不同的client 能确保功能正常执行吗
         Channel clientChannel = ChannelManager.getChannel(resourceId, clientId);
         if (clientChannel == null) {
             throw new RuntimeException("rm client is not connected. dbkey:" + resourceId
                 + ",clientId:" + clientId);
 
         }
+        // 阻塞给定时间
         return sendAsyncRequestWithResponse(null, clientChannel, message, timeout);
     }
 

@@ -168,19 +168,20 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
     }
 
     /**
-     * 当接受到读事件时触发
+     * 当接受到读事件时触发  这里就会收到TC 传来的各种请求 比如要求 RM 进行本地事务的回滚
      * @param ctx
      * @param msg
      * @throws Exception
      */
     @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
+        // server 发送过来的各种请求会被包装成 RpcMessage 对象
         if (!(msg instanceof RpcMessage)) {
             return;
         }
         RpcMessage rpcMessage = (RpcMessage) msg;
         // 如果收到心跳消息 在这层进行拦截 记得 dubbo 是使用了多层去拦截 有层是专门用于处理HeartBeat 的
-        // 这里要注意下 如果没有收到心跳是如何处理的
+        // 看来这里心跳发送模式 是 客户端 Ping -> 服务器 Pong
         if (rpcMessage.getBody() == HeartbeatMessage.PONG) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("received PONG from {}", ctx.channel().remoteAddress());
@@ -207,18 +208,18 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
             }
             return;
         }
-        // 上层就是分发消息 也就是 触发 dispatch方法
+        // 非整合消息 转发给上层就是分发消息 也就是 触发 dispatch方法
         super.channelRead(ctx, msg);
     }
 
     /**
-     * 当接受到 req RpcMsg 或者 res RpcMsg 时 通过该方法做转发
+     * 接受TC 的请求 并根据类型进行处理 比如 受到 rollback 或者 commit 等等
      * @param request the request
      * @param ctx     the ctx
      */
     @Override
     public void dispatch(RpcMessage request, ChannelHandlerContext ctx) {
-        // 如果存在监听器的情况 使用监听器去处理
+        // 转发给消息监听器去处理
         if (clientMessageListener != null) {
             String remoteAddress = NetUtil.toStringAddress(ctx.channel().remoteAddress());
             clientMessageListener.onMessage(request, remoteAddress, this);

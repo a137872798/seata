@@ -47,7 +47,7 @@ import io.seata.server.store.TransactionStoreManager;
 
 /**
  * The type Database transaction store manager.
- * 基于DB 的  TSM 对象
+ * 基于DB 的 事务信息存储对象 在 TC 的sessionManager 中有关事务的存储都会通过该对象 这样保证当server 宕机时 数据不会丢失
  * @author zhangsen
  * @data 2019 /4/2
  */
@@ -72,6 +72,7 @@ public class DatabaseTransactionStoreManager extends AbstractTransactionStoreMan
 
     /**
      * The Log store.
+     * 实际的操作又委托到该对象
      */
     protected LogStore logStore;
 
@@ -88,7 +89,7 @@ public class DatabaseTransactionStoreManager extends AbstractTransactionStoreMan
     }
 
     /**
-     * 初始化 TSM 对象
+     * 基于SPI的加载会触发init 方法
      */
     @Override
     public synchronized void init() {
@@ -96,16 +97,16 @@ public class DatabaseTransactionStoreManager extends AbstractTransactionStoreMan
         if (inited.get()) {
             return;
         }
-        // 获取查询限制
+        // 获取查询数量限制  也就是一次只允许查询100条记录
         logQueryLimit = CONFIG.getInt(ConfigurationKeys.STORE_DB_LOG_QUERY_LIMIT, DEFAULT_LOG_QUERY_LIMIT);
         // 获取数据库类型
         String datasourceType = CONFIG.getConfig(ConfigurationKeys.STORE_DB_DATASOURCE_TYPE);
         //init dataSource
-        // 通过SPI机制加载dataSource 生成器对象
+        // 通过SPI机制加载dataSource 生成器对象  就是一个创建 datasource的对象
         DataSourceGenerator dataSourceGenerator = EnhancedServiceLoader.load(DataSourceGenerator.class, datasourceType);
-        // 生成 DataSource 对象
+        // 获取 DataSource 对象
         DataSource logStoreDataSource = dataSourceGenerator.generateDataSource();
-        // 获取访问 globalSession 的基础接口对象
+        // 实际上 transcationStoreManager 的操作又委托到 logStore对象上
         logStore = EnhancedServiceLoader.load(LogStore.class, StoreMode.DB.name(), new Class[] {DataSource.class},
             new Object[] {logStoreDataSource});
         inited.set(true);

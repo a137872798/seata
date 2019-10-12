@@ -30,7 +30,7 @@ public interface Core extends TransactionManager, ResourceManagerOutbound {
 
     /**
      * Sets resource manager inbound.
-     * 设置 从RM 过来的数据的处理器
+     * 设置一个 接受 RM 数据的输入流 对应到 TC 对象 也就是 TC 本身只是作为Core 的一个 获取RM 数据的输入流
      * @param resourceManagerInbound the resource manager inbound
      */
     void setResourceManagerInbound(ResourceManagerInbound resourceManagerInbound);
@@ -48,7 +48,7 @@ public interface Core extends TransactionManager, ResourceManagerOutbound {
      * Do global rollback.
      * 执行全局回滚
      * @param globalSession the global session
-     * @param retrying      the retrying
+     * @param retrying      the retrying  代表是否是 重试的回滚
      * @throws TransactionException the transaction exception
      */
     void doGlobalRollback(GlobalSession globalSession, boolean retrying) throws TransactionException;

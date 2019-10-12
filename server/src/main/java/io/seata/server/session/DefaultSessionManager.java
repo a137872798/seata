@@ -28,7 +28,7 @@ import io.seata.server.store.SessionStorable;
 
 /**
  * The type Default session manager, store session data in memory.
- * 默认SM
+ * 默认的session存储对象直接将数据存储在 堆内存中
  * @author sharajava
  */
 @LoadLevel(name = "default")

@@ -35,7 +35,7 @@ public class RMClient {
         RmRpcClient rmRpcClient = RmRpcClient.getInstance(applicationId, transactionServiceGroup);
         // TM client 没有设置 resourceManager 的概念
         rmRpcClient.setResourceManager(DefaultResourceManager.get());
-        // 设置clientMessage 监听器
+        // 设置clientMessage 监听器  用于转发和处理TC 传递给RM 的请求
         rmRpcClient.setClientMessageListener(new RmMessageListener(DefaultRMHandler.get()));
         // 初始化逻辑 同TM
         rmRpcClient.init();

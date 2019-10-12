@@ -386,7 +386,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
 
     /**
      * Send response.
-     * 发送结果
+     * 发送结果  该方法对应client 的处理请求 返回响应结果
      * @param request  the msg id
      * @param channel the channel
      * @param msg     the msg
@@ -439,14 +439,14 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
     boolean allowDumpStack = false;
 
     /**
-     * 接受到读取的数据时
-     * @param ctx
-     * @param msg
+     * 当client/server 接受到 对端传来的消息时 根据消息类型进行分发
+     * @param ctx 当前对应的 channel
+     * @param msg 传入的请求数据体
      * @throws Exception
      */
     @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
-        // 如果接收到的时 RpcMessage
+        // 如果接收到的是 RpcMessage   好像TC 主动发送的消息是不需要去 futures 中移除对应数据的  只有当client 自身将数据发往server时因为需要等待结果所以 使用了响应池
         if (msg instanceof RpcMessage) {
             final RpcMessage rpcMessage = (RpcMessage)msg;
             // 收到请求消息

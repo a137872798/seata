@@ -82,6 +82,7 @@ import static io.seata.core.exception.TransactionExceptionCode.FailedToSendBranc
  * TC 对象 用于协调全局事务 收集资源信息 以及下发回滚请求等操作
  */
 public class DefaultCoordinator extends AbstractTCInboundHandler
+    // 这些接口代表 具备处理TM 消息 和 处理RM 消息
     implements TransactionMessageHandler, ResourceManagerInbound, Disposable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultCoordinator.class);
@@ -146,7 +147,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
     private ServerMessageSender messageSender;
 
     /**
-     * 内部包含一个 DefaultCore 对象
+     * 这里将核心逻辑抽取出来 由 Core 实现 Core 有一个默认实现就是 DefaultCore 用于处理TM/RM 传来的请求
      */
     private Core core = CoreFactory.get();
 
@@ -158,6 +159,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
      */
     public DefaultCoordinator(ServerMessageSender messageSender) {
         this.messageSender = messageSender;
+        // 将自身设置到 core 上而RMinbound 相关的处理又会转发会 core
         core.setResourceManagerInbound(this);
     }
 
@@ -190,9 +192,17 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
 
     }
 
+    /**
+     * 处理回滚相关的逻辑
+     * @param request    the request
+     * @param response   the response
+     * @param rpcContext the rpc context
+     * @throws TransactionException
+     */
     @Override
     protected void doGlobalRollback(GlobalRollbackRequest request, GlobalRollbackResponse response,
                                     RpcContext rpcContext) throws TransactionException {
+        // 通过core 来处理请求并生成结果
         response.setGlobalStatus(core.rollback(request.getXid()));
 
     }
@@ -290,14 +300,17 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
             request.setApplicationData(applicationData);
             request.setBranchType(branchType);
 
+            // 全局事务消失 代表回滚已经完成
             GlobalSession globalSession = SessionHolder.findGlobalSession(xid);
             if (globalSession == null) {
                 return BranchStatus.PhaseTwo_Rollbacked;
             }
             BranchSession branchSession = globalSession.getBranch(branchId);
 
+            // 将回滚的请求发往RM
             BranchRollbackResponse response = (BranchRollbackResponse)messageSender.sendSyncRequest(resourceId,
                 branchSession.getClientId(), request);
+            // 处理响应结果
             return response.getBranchStatus();
         } catch (IOException | TimeoutException e) {
             throw new BranchTransactionException(FailedToSendBranchRollbackRequest, String.format("Send branch rollback failed, xid = %s branchId = %s", xid, branchId), e);
@@ -356,8 +369,10 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
 
     /**
      * Handle retry rollbacking.
+     * 重试回滚
      */
     protected void handleRetryRollbacking() {
+        // 找到 所有事务状态为 重试回滚的数据
         Collection<GlobalSession> rollbackingSessions = SessionHolder.getRetryRollbackingSessionManager().allSessions();
         if (CollectionUtils.isEmpty(rollbackingSessions)) {
             return;
@@ -365,6 +380,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
         long now = System.currentTimeMillis();
         for (GlobalSession rollbackingSession : rollbackingSessions) {
             try {
+                // 判断是否超过了重试时间 代表并不是无限制的进行重试的
                 if (isRetryTimeout(now, MAX_ROLLBACK_RETRY_TIMEOUT.toMillis(), rollbackingSession.getBeginTime())) {
                     /**
                      * Prevent thread safety issues
@@ -373,7 +389,9 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
                     LOGGER.error("GlobalSession rollback retry timeout [{}]", rollbackingSession.getXid());
                     continue;
                 }
+                // 每次查询出来的都是 新对象 所以需要设置 监听器
                 rollbackingSession.addSessionLifecycleListener(SessionHolder.getRootSessionManager());
+                // 使用core 触发回滚方法
                 core.doGlobalRollback(rollbackingSession, true);
             } catch (TransactionException ex) {
                 LOGGER.info("Failed to retry rollbacking [{}] {} {}",
@@ -470,8 +488,10 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
 
     /**
      * Init.
+     * 初始化 TC 对象
      */
     public void init() {
+        // 开启回滚重试定时器
         retryRollbacking.scheduleAtFixedRate(() -> {
             try {
                 handleRetryRollbacking();
@@ -480,6 +500,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
             }
         }, 0, ROLLBACKING_RETRY_PERIOD, TimeUnit.MILLISECONDS);
 
+        // 开启提交重试定时器
         retryCommitting.scheduleAtFixedRate(() -> {
             try {
                 handleRetryCommitting();
@@ -488,6 +509,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
             }
         }, 0, COMMITTING_RETRY_PERIOD, TimeUnit.MILLISECONDS);
 
+        // 异步提交定时器
         asyncCommitting.scheduleAtFixedRate(() -> {
             try {
                 handleAsyncCommitting();
@@ -496,6 +518,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
             }
         }, 0, ASYN_COMMITTING_RETRY_PERIOD, TimeUnit.MILLISECONDS);
 
+        // 超时检测器
         timeoutCheck.scheduleAtFixedRate(() -> {
             try {
                 timeoutCheck();
@@ -504,6 +527,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
             }
         }, 0, TIMEOUT_RETRY_PERIOD, TimeUnit.MILLISECONDS);
 
+        // 删除回滚日志
         undoLogDelete.scheduleAtFixedRate(() -> {
             try {
                 undoLogDelete();

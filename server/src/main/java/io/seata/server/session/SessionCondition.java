@@ -33,7 +33,7 @@ public class SessionCondition {
      */
     private String xid;
     /**
-     * 全局状态
+     * 事务当前状态
      */
     private GlobalStatus status;
     private GlobalStatus[] statuses;

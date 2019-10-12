@@ -32,7 +32,7 @@ public class GuavaEventBus implements EventBus {
     }
 
     /**
-     * 就是插入到一个容器里
+     * 为 事件总线设置一个订阅者
      * @param subscriber
      */
     @Override
@@ -46,7 +46,7 @@ public class GuavaEventBus implements EventBus {
     }
 
     /**
-     * 传递事件到下一个环节
+     * 往总线中传入任务
      * @param event
      */
     @Override

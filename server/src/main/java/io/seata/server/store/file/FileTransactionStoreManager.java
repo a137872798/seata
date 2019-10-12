@@ -136,13 +136,14 @@ public class FileTransactionStoreManager extends AbstractTransactionStoreManager
     /**
      * Instantiates a new File transaction store manager.
      * 创建 基于文件得到 session存储对象
-     * @param fullFileName   the dir path
-     * @param sessionManager the session manager
+     * @param fullFileName   the dir path          文件名
+     * @param sessionManager the session manager     FileBasedSessionManager 对象
      * @throws IOException the io exception
      */
     public FileTransactionStoreManager(String fullFileName, SessionManager sessionManager) throws IOException {
         // 首先初始化文件
         initFile(fullFileName);
+        // 看来支持异步写入
         fileWriteExecutor = new ThreadPoolExecutor(MAX_THREAD_WRITE, MAX_THREAD_WRITE, Integer.MAX_VALUE,
             TimeUnit.MILLISECONDS,
             new LinkedBlockingQueue<Runnable>(),
@@ -353,9 +354,9 @@ public class FileTransactionStoreManager extends AbstractTransactionStoreManager
     }
 
     /**
-     * 读取  writeStore 对象
-     * @param readSize  the read size
-     * @param isHistory the is history
+     * 代表从文件中读取数据 (重启时用于恢复数据)
+     * @param readSize  the read size 代表一次读取的数量
+     * @param isHistory the is history  读取的是否是历史文件
      * @return
      */
     @Override
@@ -377,11 +378,17 @@ public class FileTransactionStoreManager extends AbstractTransactionStoreManager
         return null;
     }
 
+    /**
+     * 判断是否还有剩余数据
+     * @param isHistory the is history  代表是否需要获取历史文件
+     * @return
+     */
     @Override
     public boolean hasRemaining(boolean isHistory) {
         File file = null;
         RandomAccessFile raf = null;
         long currentOffset = 0;
+        // 指向对应的文件 和偏移量
         if (isHistory) {
             file = new File(hisFullFileName);
             currentOffset = recoverHisOffset;

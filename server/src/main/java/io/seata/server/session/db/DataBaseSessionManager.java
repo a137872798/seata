@@ -68,7 +68,7 @@ public class DataBaseSessionManager extends AbstractSessionManager
 
     /**
      * Instantiates a new Data base session manager.
-     *
+     * SessionHolder 中有4个该对象 分别用于 同步/异步/重试/回滚
      * @param name the name
      */
     public DataBaseSessionManager(String name) {
@@ -76,21 +76,31 @@ public class DataBaseSessionManager extends AbstractSessionManager
         this.taskName = name;
     }
 
+    /**
+     * 基于SPI的加载 会触发 init 方法
+     */
     @Override
     public void init() {
-        // 这里又初始化了 TSM 对象
+        // transactionStoreManager 对象是 持久化数据的对象 SessionManager 本身的保存逻辑实际上是委托给该对象
         transactionStoreManager = EnhancedServiceLoader.load(TransactionStoreManager.class, StoreMode.DB.name());
     }
 
+    // 下面的操作 基本都会涉及到taskName的判断
+
+    /**
+     * @param session the session
+     * @throws TransactionException
+     */
     @Override
     public void addGlobalSession(GlobalSession session) throws TransactionException {
-        // 如果指定了 taskName 代表是更新操作
+        // 推测 未设置名字 就代表是同步处理 那么 session 处理完后肯定是删除了  这里就要重新添加
         if (StringUtils.isBlank(taskName)) {
             boolean ret = transactionStoreManager.writeSession(LogOperation.GLOBAL_ADD, session);
             if (!ret) {
                 throw new StoreException("addGlobalSession failed.");
             }
         } else {
+            // 异步模式 可能全局事务的记录还在数据库中 那么就进行更新
             boolean ret = transactionStoreManager.writeSession(LogOperation.GLOBAL_UPDATE, session);
             if (!ret) {
                 throw new StoreException("addGlobalSession failed.");
@@ -99,7 +109,7 @@ public class DataBaseSessionManager extends AbstractSessionManager
     }
 
     /**
-     * 更新操作必须指定 taskName
+     * 异步模式才有更新的必要
      * @param session the session
      * @param status  the status
      * @throws TransactionException
@@ -167,7 +177,7 @@ public class DataBaseSessionManager extends AbstractSessionManager
 
     @Override
     public Collection<GlobalSession> allSessions() {
-        //get by taskName
+        //get by taskName  根据情况寻找不同的 session  SessionCondition 代表搜寻session 的条件对象
         if (SessionHolder.ASYNC_COMMITTING_SESSION_MANAGER_NAME.equalsIgnoreCase(taskName)) {
             return findGlobalSessions(new SessionCondition(GlobalStatus.AsyncCommitting));
         } else if (SessionHolder.RETRY_COMMITTING_SESSION_MANAGER_NAME.equalsIgnoreCase(taskName)) {

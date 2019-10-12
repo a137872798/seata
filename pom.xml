@@ -36,7 +36,7 @@
         <module>integration/motan</module>
         <module>rm</module>
         <module>rm-datasource</module>
-        <module>server</module>
+        <module></module>
         <module>spring</module>
         <module>tcc</module>
         <module>test</module>

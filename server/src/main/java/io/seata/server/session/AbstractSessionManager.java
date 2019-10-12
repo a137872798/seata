@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Abstract session manager.
- * SM 骨架类
+ * 会话管理器 骨架类
  */
 public abstract class AbstractSessionManager implements SessionManager, SessionLifecycleListener {
 
@@ -79,6 +79,12 @@ public abstract class AbstractSessionManager implements SessionManager, SessionL
         writeSession(LogOperation.GLOBAL_ADD, session);
     }
 
+    /**
+     * 更新事务状态
+     * @param session the session
+     * @param status  the status
+     * @throws TransactionException
+     */
     @Override
     public void updateGlobalSessionStatus(GlobalSession session, GlobalStatus status) throws TransactionException {
         if (LOGGER.isDebugEnabled()) {
@@ -87,6 +93,11 @@ public abstract class AbstractSessionManager implements SessionManager, SessionL
         writeSession(LogOperation.GLOBAL_UPDATE, session);
     }
 
+    /**
+     * 关闭某个全局事务
+     * @param session the session
+     * @throws TransactionException
+     */
     @Override
     public void removeGlobalSession(GlobalSession session) throws TransactionException {
         if (LOGGER.isDebugEnabled()) {
@@ -95,6 +106,12 @@ public abstract class AbstractSessionManager implements SessionManager, SessionL
         writeSession(LogOperation.GLOBAL_REMOVE, session);
     }
 
+    /**
+     * 为某个全局事务 增加分支
+     * @param session       the session
+     * @param branchSession
+     * @throws TransactionException
+     */
     @Override
     public void addBranchSession(GlobalSession session, BranchSession branchSession) throws TransactionException {
         if (LOGGER.isDebugEnabled()) {
@@ -103,6 +120,12 @@ public abstract class AbstractSessionManager implements SessionManager, SessionL
         writeSession(LogOperation.BRANCH_ADD, branchSession);
     }
 
+    /**
+     * 更新分支事务状态 比如发现 某个分事务进行回滚了或者 成功提交了
+     * @param branchSession
+     * @param status  the status
+     * @throws TransactionException
+     */
     @Override
     public void updateBranchSessionStatus(BranchSession branchSession, BranchStatus status)
         throws TransactionException {
@@ -112,6 +135,12 @@ public abstract class AbstractSessionManager implements SessionManager, SessionL
         writeSession(LogOperation.BRANCH_UPDATE, branchSession);
     }
 
+    /**
+     * 移除某个分支事务
+     * @param globalSession the global session
+     * @param branchSession
+     * @throws TransactionException
+     */
     @Override
     public void removeBranchSession(GlobalSession globalSession, BranchSession branchSession)
         throws TransactionException {
@@ -120,6 +149,8 @@ public abstract class AbstractSessionManager implements SessionManager, SessionL
         }
         writeSession(LogOperation.BRANCH_REMOVE, branchSession);
     }
+
+    // 下面的方法基本都是委托给上面 实际上 最终都会变成调用writeSession 之后根据方法类型走不同的 持久化逻辑
 
     @Override
     public void onBegin(GlobalSession globalSession) throws TransactionException {

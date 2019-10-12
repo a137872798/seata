@@ -64,6 +64,7 @@ public class DataBaseLocker extends AbstractLocker {
             return true;
         }
         try {
+            // 委托给 锁存储对象  加锁实际上就是在数据库中保存对应数据 而其他服务想要加锁 发现数据库中有数据就是加锁失败
             return lockStore.acquireLock(convertToLockDO(locks));
         } catch (Exception t) {
             LOGGER.error("AcquireLock error, locks:" + CollectionUtils.toString(locks), t);

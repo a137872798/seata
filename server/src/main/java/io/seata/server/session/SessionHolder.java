@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Session holder.
- * 维护各种单例 保证对应的 manager 是全局唯一的
  * @author sharajava
  */
 public class SessionHolder {
@@ -81,20 +80,20 @@ public class SessionHolder {
 
     /**
      * Init.
-     * 进行初始化
+     * 根据使用的 持久化方式进行初始化  每个server 都需要具备持久化client信息的功能 否则一旦server出现问题 重新恢复后会丢失之前的会话
      * @param mode the store mode: file、db
      * @throws IOException the io exception
      */
     public static void init(String mode) throws IOException {
+        // 如果没有指定存储模式 尝试从配置中心获取
         if (StringUtils.isBlank(mode)) {
             //use default
             // 获取存储模式
             mode = CONFIG.getConfig(ConfigurationKeys.STORE_MODE);
         }
         //the store mode
-        // 有基于 DB 的 存储模式 还有基于 File 的存储模式
         StoreMode storeMode = StoreMode.valueof(mode);
-        // 如果是db模式
+        // 如果是基于 db 的存储
         if (StoreMode.DB.equals(storeMode)) {
             //database store
             // 获取基于 DB 的 SessionManager 对象
@@ -108,15 +107,16 @@ public class SessionHolder {
             // 回滚对象
             RETRY_ROLLBACKING_SESSION_MANAGER = EnhancedServiceLoader.load(SessionManager.class, StoreMode.DB.name(),
                 new Object[] {RETRY_ROLLBACKING_SESSION_MANAGER_NAME});
+        // 基于文件的持久化
         } else if (StoreMode.FILE.equals(storeMode)) {
-            //file store
-            // 同上 只是实现变成了基于文件
+            //file store 获取文件存储路径
             String sessionStorePath = CONFIG.getConfig(ConfigurationKeys.STORE_FILE_DIR, DEFAULT_SESSION_STORE_FILE_DIR);
             if (sessionStorePath == null) {
                 throw new StoreException("the {store.file.dir} is empty.");
             }
             ROOT_SESSION_MANAGER = EnhancedServiceLoader.load(SessionManager.class, StoreMode.FILE.name(),
                 new Object[] {ROOT_SESSION_MANAGER_NAME, sessionStorePath});
+            // 这里剩余的3种模式 创建的是 Default   DefaultSessionManager 实际上都是将数据存放在堆中
             ASYNC_COMMITTING_SESSION_MANAGER = EnhancedServiceLoader.load(SessionManager.class, DEFAULT,
                 new Object[] {ASYNC_COMMITTING_SESSION_MANAGER_NAME});
             RETRY_COMMITTING_SESSION_MANAGER = EnhancedServiceLoader.load(SessionManager.class, DEFAULT,
@@ -128,7 +128,7 @@ public class SessionHolder {
             throw new IllegalArgumentException("unknown store mode:" + mode);
         }
         //relaod
-        // 加载某些数据
+        // 一般在server 启动时会创建该对象 这时 server 可能是重启过的 那么就需要加载宕机前已经保存的数据
         reload();
     }
 
@@ -137,12 +137,12 @@ public class SessionHolder {
      * 加载数据
      */
     protected static void reload() {
-        // 首先确保 SessionManager 是可加载对象
+        // 首先确保 SessionManager 是可加载对象  目前只有基于文件的 sessionManager是 reloadable
         if (ROOT_SESSION_MANAGER instanceof Reloadable) {
             // 触发 manager 的 reload 方法
             ((Reloadable)ROOT_SESSION_MANAGER).reload();
 
-            // 重新加载之后 获取当前所有session
+            // 重新加载之后 获取了上次没有处理完的 全局事务
             Collection<GlobalSession> reloadedSessions = ROOT_SESSION_MANAGER.allSessions();
             // 如果 session 本身不为空
             if (reloadedSessions != null && !reloadedSessions.isEmpty()) {
@@ -162,22 +162,23 @@ public class SessionHolder {
                         // 异步提交
                         case AsyncCommitting:
                             try {
-                                // 为全局session 设置 asyncCommitSessionManager 作为监听器
+                                // 为全局session 设置 asyncCommitSessionManager 作为监听器  该SessionManager 会在全局事务在对应的生命周期时 触发对应的钩子函数
+                                // 比如 全局事务被创建时 进行持久化 触发移除时 从DB/File 中移除
                                 globalSession.addSessionLifecycleListener(getAsyncCommittingSessionManager());
-                                // 为 sm 对象增加 gs 对象
+                                // 触发增加的钩子
                                 getAsyncCommittingSessionManager().addGlobalSession(globalSession);
                             } catch (TransactionException e) {
                                 throw new ShouldNeverHappenException(e);
                             }
                             break;
-                        // 其余代表初始状态
+                        // 比如 回滚 同步提交等
                         default: {
-                            // 获取 该全局事务下的分支事务
+                            // 重启时 要为 之前的分事务全部上锁
                             ArrayList<BranchSession> branchSessions = globalSession.getSortedBranches();
                             // Lock
                             branchSessions.forEach(branchSession -> {
                                 try {
-                                    // 对分事务进行加锁
+                                    // 对分事务进行加锁  基于DB 的实现就是在 数据库中添加了数据
                                     branchSession.lock();
                                 } catch (TransactionException e) {
                                     throw new ShouldNeverHappenException(e);

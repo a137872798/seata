@@ -56,7 +56,7 @@ public class DefaultCore implements Core {
     private LockManager lockManager = LockerFactory.getLockManager();
 
     /**
-     * 处理 RM输入数据
+     * 获取到 RM 数据的输入流 一般就是TC 对象 TC 对象本身作为 server 接受RM 的数据 并转发给Core 进行处理
      */
     private ResourceManagerInbound resourceManagerInbound;
 
@@ -400,21 +400,28 @@ public class DefaultCore implements Core {
         return globalSession.getStatus();
     }
 
+    /**
+     * 执行回滚操作
+     * @param globalSession the global session
+     * @param retrying      the retrying  代表是否是 重试的回滚
+     * @throws TransactionException
+     */
     @Override
     public void doGlobalRollback(GlobalSession globalSession, boolean retrying) throws TransactionException {
-        //start rollback event
+        //start rollback event  往事件总线中插入 回滚任务  推测 该对象不影响主流程 而是类似于一种增强 用户通过为 总线对象设置订阅者 补充自己的逻辑
         eventBus.post(new GlobalTransactionEvent(globalSession.getTransactionId(), GlobalTransactionEvent.ROLE_TC,
             globalSession.getTransactionName(), globalSession.getBeginTime(), null, globalSession.getStatus()));
 
+        // 将 总事务下 所有分事务 倒序返回
         for (BranchSession branchSession : globalSession.getReverseSortedBranches()) {
             BranchStatus currentBranchStatus = branchSession.getStatus();
-            // 一阶段失败 就移除
+            // 一阶段失败 不需要回滚 代表 某个本地事务 第一次提交就失败了  提交方式为 除了提交正常的数据外 还会提交一个 undo 日志
             if (currentBranchStatus == BranchStatus.PhaseOne_Failed) {
                 globalSession.removeBranch(branchSession);
                 continue;
             }
             try {
-                // 处理传入的 回滚请求  这里代表真正执行回滚逻辑
+                // 因为TC 本身只是用于发起回滚请求 实际的操作还是需要通过server 通知RM 进行处理
                 BranchStatus branchStatus = resourceManagerInbound.branchRollback(branchSession.getBranchType(),
                     branchSession.getXid(), branchSession.getBranchId(),
                     branchSession.getResourceId(), branchSession.getApplicationData());

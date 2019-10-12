@@ -24,20 +24,31 @@ import io.seata.core.constants.ConfigurationKeys;
 
 /**
  * The type Parameter parser.
- *
+ * 参数解析器用于解析 启动server 时的 命令行参数
  * @author xingfudeshi@gmail.com
  * @date 2019/05/30
  */
 public class ParameterParser {
     private static final String PROGRAM_NAME = "sh seata-server.sh(for linux and mac) or cmd seata-server.bat(for windows)";
+    /**
+     * 默认端口
+     */
     private static final int SERVER_DEFAULT_PORT = 8091;
+    /**
+     * 默认的存储模式 TC 本身 应该是要实现某种持久化方案 才能保证TM/RM 上传的数据不丢失
+     */
     private static final String SERVER_DEFAULT_STORE_MODE = "file";
+    /**
+     * 当前服务节点id
+     */
     private static final int SERVER_DEFAULT_NODE = 1;
     /**
      * The constant CONFIG.
+     * 关联到配置中心  配置中心也先不看
      */
     protected static final Configuration CONFIG = ConfigurationFactory.getInstance();
 
+    // @Parameter 注解 推测是解析 命令行参数的
     @Parameter(names = "--help", help = true)
     private boolean help;
     @Parameter(names = {"--host", "-h"}, description = "The ip to register to registry center.", order = 1)
@@ -58,8 +69,13 @@ public class ParameterParser {
         this.init(args);
     }
 
+    /**
+     * 解析命令行参数
+     * @param args
+     */
     private void init(String[] args) {
         try {
+            // 生成解析命令行对象
             JCommander jCommander = JCommander.newBuilder().addObject(this).build();
             jCommander.parse(args);
             if (help) {

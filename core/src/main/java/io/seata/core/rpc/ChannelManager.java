@@ -52,7 +52,6 @@ public class ChannelManager {
 
     /**
      * resourceId -> applicationId -> ip -> port -> RpcContext
-     * 这么多层key ...
      */
     private static final ConcurrentMap<String, ConcurrentMap<String, ConcurrentMap<String, ConcurrentMap<Integer,
         RpcContext>>>>
@@ -60,7 +59,7 @@ public class ChannelManager {
         RpcContext>>>>();
 
     /**
-     * ip+appname,port
+     * ip+appname,port   一级key 相当于唯一标识 二级key 代表port 也就是 同一个 id 下可能有多个 channel
      */
     private static final ConcurrentMap<String, ConcurrentMap<Integer, RpcContext>> TM_CHANNELS
         = new ConcurrentHashMap<String, ConcurrentMap<Integer, RpcContext>>();
@@ -284,7 +283,7 @@ public class ChannelManager {
 
     /**
      * Gets get same income client channel.
-     *
+     * 从池中找到对应的 相同 id 的channel
      * @param channel the channel
      * @return the get same income client channel
      */
@@ -306,6 +305,7 @@ public class ChannelManager {
         if (clientRole == NettyPoolKey.TransactionRole.TMROLE) {
             String clientIdentified = rpcContext.getApplicationId() + Constants.CLIENT_ID_SPLIT_CHAR
                 + getClientIpFromChannel(channel);
+            // 不能返回 当前server 没有维护的 TM
             if (!TM_CHANNELS.containsKey(clientIdentified)) {
                 return null;
             }
@@ -323,6 +323,12 @@ public class ChannelManager {
 
     }
 
+    /**
+     * 从容器中找到 存活的 channel 返回
+     * @param clientChannelMap
+     * @param exclusivePort
+     * @return
+     */
     private static Channel getChannelFromSameClientMap(Map<Integer, RpcContext> clientChannelMap, int exclusivePort) {
         if (null != clientChannelMap && !clientChannelMap.isEmpty()) {
             for (ConcurrentMap.Entry<Integer, RpcContext> entry : clientChannelMap.entrySet()) {
@@ -340,7 +346,7 @@ public class ChannelManager {
 
     /**
      * Gets get channel.
-     *
+     * 通过资源id 和 client id 定位到某个channel
      * @param resourceId Resource ID
      * @param clientId   Client ID - ApplicationId:IP:Port
      * @return Corresponding channel, NULL if not found.
@@ -393,7 +399,7 @@ public class ChannelManager {
                     }
                 }
 
-                // The original channel was broken, try another one.
+                // The original channel was broken, try another one.  选择相同ip 的所有channel
                 if (resultChannel == null) {
                     for (ConcurrentMap.Entry<Integer, RpcContext> portMapOnTargetIPEntry : portMapOnTargetIP
                         .entrySet()) {
@@ -420,6 +426,7 @@ public class ChannelManager {
             }
 
             // No channel on the this app node, try another one.
+            // 代表 该ip 没有找到对应的 channel  尝试获取相同应用下 其他 ip
             if (resultChannel == null) {
                 for (ConcurrentMap.Entry<String, ConcurrentMap<Integer, RpcContext>> ipMapEntry : ipMap
                     .entrySet()) {
@@ -455,6 +462,7 @@ public class ChannelManager {
             }
         }
 
+        // 尝试从其他应用获取 channel
         if (resultChannel == null) {
             resultChannel = tryOtherApp(applicationIdMap, targetApplicationId);
 

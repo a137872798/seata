@@ -32,7 +32,7 @@ import io.seata.server.session.GlobalSession;
 
 /**
  * The type Default lock manager.
- * 默认LM
+ * 默认的锁管理器
  * @author zhangsen
  * @data 2019 -05-15
  */

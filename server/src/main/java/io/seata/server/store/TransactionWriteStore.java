@@ -24,7 +24,7 @@ import io.seata.server.store.TransactionStoreManager.LogOperation;
 
 /**
  * The type Transaction write store.
- * 存储session 的对象
+ * 事务相关信息 在基于文件的存储时 会抽象成这个类进行存储
  * @author jimin.jm @alibaba-inc.com
  * @date 2018 /12/11
  */
@@ -107,6 +107,7 @@ public class TransactionWriteStore implements SessionStorable {
         ByteBuffer byteBuffer = ByteBuffer.wrap(src);
         byte[] bySessionRequest = new byte[src.length - 1];
         byteBuffer.get(bySessionRequest);
+        // 看来最后一位代表着数据的类型
         byte byOpCode = byteBuffer.get();
         this.operate = LogOperation.getLogOperationByCode(byOpCode);
         SessionStorable tmpSessionStorable = getSessionInstanceByOperation(this.operate);
