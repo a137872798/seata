@@ -186,11 +186,13 @@ public class DefaultCore implements Core {
     @Override
     public String begin(String applicationId, String transactionServiceGroup, String name, int timeout)
         throws TransactionException {
+        // 创建一个全局事务对象
         GlobalSession session = GlobalSession.createGlobalSession(
             applicationId, transactionServiceGroup, name, timeout);
+        // 设置 session 生命周期对应的监听器对象
         session.addSessionLifecycleListener(SessionHolder.getRootSessionManager());
 
-        // 开启全局事务 这里只会触发监听器
+        // 开启全局事务 这里会触发监听器
         session.begin();
 
         //transaction start event
@@ -203,13 +205,14 @@ public class DefaultCore implements Core {
     }
 
     /**
-     * 代表某个全局事务完成 并进行了提交
+     * 提交全局事务
      * @param xid XID of the global transaction.
      * @return
      * @throws TransactionException
      */
     @Override
     public GlobalStatus commit(String xid) throws TransactionException {
+        // 查找对应的 session  一种是通过 db 查询 一种通过存储在JVM的 map中
         GlobalSession globalSession = SessionHolder.findGlobalSession(xid);
         if (globalSession == null) {
             return GlobalStatus.Finished;
@@ -218,16 +221,17 @@ public class DefaultCore implements Core {
         // just lock changeStatus
         boolean shouldCommit = globalSession.lockAndExcute(() -> {
             //the lock should release after branch commit
-            // 关闭session 就是释放session所持有的锁
+            // close 触发钩子   clean 释放全局事务锁 (就是在 db 中删除相关数据)
             globalSession
                 .closeAndClean(); // Highlight: Firstly, close the session, then no more branch can be registered.
-            // 代表正在提交中
+            // 全局事务必须处在 Begin 才允许提交 其他情况应该是代表 因为某个 branch 出现问题无法提交
             if (globalSession.getStatus() == GlobalStatus.Begin) {
                 globalSession.changeStatus(GlobalStatus.Committing);
                 return true;
             }
             return false;
         });
+        // 如果无法提交 就返回当前全局事务的状态
         if (!shouldCommit) {
             return globalSession.getStatus();
         }
@@ -242,7 +246,7 @@ public class DefaultCore implements Core {
     }
 
     /**
-     * 同步提交  该方法中没有看到实际的 commit 动作
+     * 同步提交  因为整个 globalTransaction 就是 由一个个branch组成的 而每个branch 都会完成自己的 本地事务 所以 commit 其实不需要做真正的提交
      * @param globalSession the global session
      * @param retrying      the retrying
      * @throws TransactionException
@@ -262,7 +266,11 @@ public class DefaultCore implements Core {
                 continue;
             }
             try {
-                // 处理分事务的提交
+                // 提交分事务  也就是正确的流程应该是
+                //                                   begin GlobalTransaction -> do branchTransaction -> save undoLog -> commit branchTransaction
+                //                                   -> commit GlobalTransaction -> delete undoLog(实际上下面的branchCommit就是这步 每个分事务会管理自己的本地事务)
+                // 而在 RM 那端是使用一个 线程池来异步操作 即使本操作是异步执行对整个事务也不会有大影响无非就是多了一些无用的 undo日志
+                // 当然上面的前提是针对 AT 情况 AT 和 TCC 是不同的
                 BranchStatus branchStatus = resourceManagerInbound.branchCommit(branchSession.getBranchType(),
                     branchSession.getXid(), branchSession.getBranchId(),
                     branchSession.getResourceId(), branchSession.getApplicationData());
@@ -328,13 +336,12 @@ public class DefaultCore implements Core {
     }
 
     /**
-     * 异步提交
+     * 异步提交 TODO 明天 继续
      * @param globalSession
      * @throws TransactionException
      */
     private void asyncCommit(GlobalSession globalSession) throws TransactionException {
         globalSession.addSessionLifecycleListener(SessionHolder.getAsyncCommittingSessionManager());
-        // 将globalSession 设置到了 ACSM 中
         SessionHolder.getAsyncCommittingSessionManager().addGlobalSession(globalSession);
         globalSession.changeStatus(GlobalStatus.AsyncCommitting);
     }
@@ -381,8 +388,9 @@ public class DefaultCore implements Core {
         }
         globalSession.addSessionLifecycleListener(SessionHolder.getRootSessionManager());
         // just lock changeStatus
-        // 判断是否需要回滚
+        // 判断是否需要回滚  该锁是一个JVM 锁 那么如何确保某个全局事务总是能访问到 某个单点TC (每次总是与该地址进行通信)
         boolean shouldRollBack = globalSession.lockAndExcute(() -> {
+            // 首先关闭全局事务 避免更多的 branch 注册上来
             globalSession.close(); // Highlight: Firstly, close the session, then no more branch can be registered.
             // 只有globalSession 处于开始阶段才允许回滚
             if (globalSession.getStatus() == GlobalStatus.Begin) {

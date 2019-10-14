@@ -32,8 +32,7 @@ import io.seata.rm.datasource.undo.SQLUndoLog;
 
 /**
  * The type My sql undo insert executor.
- * mysql 中针对 增加撤销日志的 执行器
- * 为什么 insert 使用的是 delete...
+ * 针对INSERT 的 回滚操作自然就是删除新增的数据
  * @author sharajava
  */
 public class MySQLUndoInsertExecutor extends AbstractUndoExecutor {

@@ -64,6 +64,7 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
 
     /**
      * key: resourceId  value: dataSourceProxy
+     * 看来一个RM 下可能有多个 datasource
      */
     private Map<String, Resource> dataSourceCache = new ConcurrentHashMap<>();
 
@@ -219,7 +220,7 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
     }
 
     /**
-     * 回滚任务也是委托给 Worker 对象
+     * 基于 Undo日志的 RM 本地事务回滚（也就是AT 模式） 如果是 TCC 应该会调用指定的回滚方法
      * @param branchType      the branch type
      * @param xid             Transaction id.
      * @param branchId        Branch id.
@@ -231,6 +232,7 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
     @Override
     public BranchStatus branchRollback(BranchType branchType, String xid, long branchId, String resourceId,
                                        String applicationData) throws TransactionException {
+        // 资源id 对应 dataSource
         DataSourceProxy dataSourceProxy = get(resourceId);
         if (dataSourceProxy == null) {
             throw new ShouldNeverHappenException();
@@ -238,6 +240,7 @@ public class DataSourceManager extends AbstractResourceManager implements Initia
         try {
             // 获取日志 对象 并执行回滚
             UndoLogManagerFactory.getUndoLogManager(dataSourceProxy.getDbType()).undo(dataSourceProxy, xid, branchId);
+            // 可能会抛出需要重试的异常
         } catch (TransactionException te) {
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info("branchRollback failed reason [{}]", te.getMessage());

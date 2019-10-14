@@ -446,7 +446,7 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
      */
     @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
-        // 如果接收到的是 RpcMessage   好像TC 主动发送的消息是不需要去 futures 中移除对应数据的  只有当client 自身将数据发往server时因为需要等待结果所以 使用了响应池
+        // 如果接收到的是 RpcMessage   TC主动发送的消息是不需要去 futures 中移除对应数据的  只有当client 自身将数据发往server时因为需要等待结果所以 使用了响应池
         if (msg instanceof RpcMessage) {
             final RpcMessage rpcMessage = (RpcMessage)msg;
             // 收到请求消息

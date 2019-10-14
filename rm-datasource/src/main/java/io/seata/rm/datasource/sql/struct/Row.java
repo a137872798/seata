@@ -82,7 +82,7 @@ public class Row {
 
     /**
      * Non-primary keys list.
-     *
+     * 获取所有非主键字段
      * @return the non-primary list
      */
     public List<Field> nonPrimaryKeys() {

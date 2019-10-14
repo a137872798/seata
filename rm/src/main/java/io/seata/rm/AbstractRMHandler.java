@@ -64,9 +64,15 @@ public abstract class AbstractRMHandler extends AbstractExceptionHandler
         return response;
     }
 
+    /**
+     * 处理回滚请求
+     * @param request the request
+     * @return
+     */
     @Override
     public BranchRollbackResponse handle(BranchRollbackRequest request) {
         BranchRollbackResponse response = new BranchRollbackResponse();
+        // 通过异常模板来执行
         exceptionHandleTemplate(new AbstractCallback<BranchRollbackRequest, BranchRollbackResponse>() {
             @Override
             public void execute(BranchRollbackRequest request, BranchRollbackResponse response)
@@ -114,13 +120,14 @@ public abstract class AbstractRMHandler extends AbstractExceptionHandler
 
     /**
      * Do branch rollback.
-     *
+     * 对应 总事务中回滚分事务 (借助undo日志进行回滚)
      * @param request  the request
      * @param response the response
      * @throws TransactionException the transaction exception
      */
     protected void doBranchRollback(BranchRollbackRequest request, BranchRollbackResponse response)
         throws TransactionException {
+        // 通过全局事务id 和 resourceId 去查询undo日志并回滚
         String xid = request.getXid();
         long branchId = request.getBranchId();
         String resourceId = request.getResourceId();
@@ -154,12 +161,14 @@ public abstract class AbstractRMHandler extends AbstractExceptionHandler
      */
     @Override
     public AbstractResultMessage onRequest(AbstractMessage request, RpcContext context) {
+        // 该类子类对象 申请 commit  rollback deleteUndo
         if (!(request instanceof AbstractTransactionRequestToRM)) {
             throw new IllegalArgumentException();
         }
         AbstractTransactionRequestToRM transactionRequest = (AbstractTransactionRequestToRM)request;
         transactionRequest.setRMInboundMessageHandler(this);
 
+        // 该方法内部还是转发给handler 对象 执行handle 方法
         return transactionRequest.handle(context);
     }
 

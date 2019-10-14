@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The type Abstract session manager.
- * 会话管理器 骨架类
+ * 会话管理器 骨架类  在针对 GlobalSession 的 操作 都会触发相关的 函数
  */
 public abstract class AbstractSessionManager implements SessionManager, SessionLifecycleListener {
 

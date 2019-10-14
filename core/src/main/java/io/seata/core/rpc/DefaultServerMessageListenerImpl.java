@@ -93,14 +93,13 @@ public class DefaultServerMessageListenerImpl implements ServerMessageListener {
                 "server received:" + message + ",clientIp:" + NetUtil.toIpAddress(ctx.channel().remoteAddress())
                     + ",vgroup:" + rpcContext.getTransactionServiceGroup());
         } else {
-            // 不能debug 进入队列是什么意思???
+            // 大概意思是开启一个线程来 读取消息并用info级别打印
             messageStrings.offer(
                 message + ",clientIp:" + NetUtil.toIpAddress(ctx.channel().remoteAddress()) + ",vgroup:" + rpcContext
                     .getTransactionServiceGroup());
         }
         if (!(message instanceof AbstractMessage)) { return; }
-        // 这里怎么能保证进入下面 一定是 响应消息呢 ???
-        // 如果是组合消息
+        // 处理批量消息
         if (message instanceof MergedWarpMessage) {
             AbstractResultMessage[] results = new AbstractResultMessage[((MergedWarpMessage)message).msgs.size()];
             for (int i = 0; i < results.length; i++) {
@@ -120,7 +119,7 @@ public class DefaultServerMessageListenerImpl implements ServerMessageListener {
     }
 
     /**
-     * 针对rm 消息
+     * 注册RM 消息  在一个client 创建时 会将TM 信息和 对应的RM 信息注册到 TC 上 resourceId 会对应到一个dataSource
      * @param request          the msg id
      * @param ctx              the ctx
      * @param sender           the sender
@@ -152,7 +151,7 @@ public class DefaultServerMessageListenerImpl implements ServerMessageListener {
     }
 
     /**
-     * 处理 注册到TM 上的消息
+     * 处理 TM 注册到 TC 的消息
      * @param request          the msg id
      * @param ctx              the ctx
      * @param sender           the sender
@@ -162,10 +161,12 @@ public class DefaultServerMessageListenerImpl implements ServerMessageListener {
     public void onRegTmMessage(RpcMessage request, ChannelHandlerContext ctx,
                                ServerMessageSender sender, RegisterCheckAuthHandler checkAuthHandler) {
         RegisterTMRequest message = (RegisterTMRequest) request.getBody();
+        // 获取对端 client 的地址
         String ipAndPort = NetUtil.toStringAddress(ctx.channel().remoteAddress());
         Version.putChannelVersion(ctx.channel(), message.getVersion());
         boolean isSuccess = false;
         try {
+            // 如果存在权限校验器的话 校验注册数据  (用户实现)
             if (null == checkAuthHandler || checkAuthHandler.regTransactionManagerCheckAuth(message)) {
                 ChannelManager.registerTMChannel(message, ctx.channel());
                 Version.putChannelVersion(ctx.channel(), message.getVersion());
@@ -180,8 +181,7 @@ public class DefaultServerMessageListenerImpl implements ServerMessageListener {
             isSuccess = false;
             LOGGER.error(exx.getMessage());
         }
-        // 啥意思啊???
-        //FIXME please add success or fail
+        // 返回结果
         sender.sendResponse(request, ctx.channel(),
             new RegisterTMResponse(isSuccess));
     }

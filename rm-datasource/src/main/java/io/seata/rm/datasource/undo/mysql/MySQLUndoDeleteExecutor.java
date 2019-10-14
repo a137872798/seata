@@ -62,26 +62,28 @@ public class MySQLUndoDeleteExecutor extends AbstractUndoExecutor {
     protected String buildUndoSQL() {
         // 获取校验器对象
         KeywordChecker keywordChecker = KeywordCheckerFactory.getKeywordChecker(JdbcConstants.MYSQL);
-        // 获取快照
+        // 获取快照 （关于delete的回滚语句必须包含前照）
         TableRecords beforeImage = sqlUndoLog.getBeforeImage();
         List<Row> beforeImageRows = beforeImage.getRows();
         if (beforeImageRows == null || beforeImageRows.size() == 0) {
             throw new ShouldNeverHappenException("Invalid UNDO LOG");
         }
         Row row = beforeImageRows.get(0);
+        // 获取所有非 主键字段
         List<Field> fields = new ArrayList<>(row.nonPrimaryKeys());
         Field pkField = row.primaryKeys().get(0);
         // PK is at last one.
         // 将 pk 放到末尾
         fields.add(pkField);
 
-        // 将col 拼接起来
+        // 识别 字段是否属于DB 关键字 如果是的话就用 `` 进行包裹
         String insertColumns = fields.stream()
             .map(field -> keywordChecker.checkAndReplace(field.getName()))
             .collect(Collectors.joining(", "));
         String insertValues = fields.stream().map(field -> "?")
             .collect(Collectors.joining(", "));
 
+        // 获取删除的数据重新生成 插入语句 注意这里主键也还原了
         return String.format(INSERT_SQL_TEMPLATE, keywordChecker.checkAndReplace(sqlUndoLog.getTableName()),
                              insertColumns, insertValues);
     }

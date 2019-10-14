@@ -63,7 +63,7 @@ public class RmMessageListener implements ClientMessageListener {
     }
 
     /**
-     * 处理收到的消息
+     * 上层的 dispatch 会转发到下游 针对 client 就是使用MessageListener 去消费消息
      * @param request       the msg id
      * @param serverAddress the server address
      * @param sender        the sender

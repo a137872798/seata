@@ -121,7 +121,6 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
 
     /**
      * Undo.
-     *
      * @param dataSourceProxy the data source proxy   数据源代理对象
      * @param xid             the xid                 事务id
      * @param branchId        the branch id           总事务中分支id
@@ -141,13 +140,12 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
                 conn = dataSourceProxy.getPlainConnection();
 
                 // The entire undo process should run in a local transaction.
-                // 撤销动作应该在一个本地事务中 所以关闭了 autoCommit
                 if (originalAutoCommit = conn.getAutoCommit()) {
                     conn.setAutoCommit(false);
                 }
 
                 // Find UNDO LOG
-                // 寻找撤销日志
+                // 确保undo日志存在 才可能进行回滚
                 selectPST = conn.prepareStatement(SELECT_UNDO_LOG_SQL);
                 selectPST.setLong(1, branchId);
                 selectPST.setString(2, xid);
@@ -171,9 +169,8 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
                         return;
                     }
 
-                    // 获取context 数据
+                    // 可以理解为存放元数据的字段
                     String contextString = rs.getString(ClientTableColumnsName.UNDO_LOG_CONTEXT);
-                    // 解析 重新变为一个map<String, String> 对象
                     Map<String, String> context = parseContext(contextString);
                     // 获取回滚信息
                     Blob b = rs.getBlob(ClientTableColumnsName.UNDO_LOG_ROLLBACK_INFO);
@@ -189,9 +186,9 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
                         // put serializer name to local
                         // 为本线程设置 解析器
                         setCurrentSerializer(parser.getName());
+                        // 代表一系列生成的 回滚语句 需要反向执行
                         List<SQLUndoLog> sqlUndoLogs = branchUndoLog.getSqlUndoLogs();
                         if (sqlUndoLogs.size() > 1) {
-                            // 反转语句
                             Collections.reverse(sqlUndoLogs);
                         }
                         for (SQLUndoLog sqlUndoLog : sqlUndoLogs) {
@@ -221,7 +218,7 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
 
                 // 代表查询到了 对应的 语句
                 if (exists) {
-                    // 删除 撤销语句
+                    // 删除 回滚语句本身  针对 branch 的本地事务在AT 模式下都有2步操作  一个是本该执行的操作 还有一个是针对 添加/删除 Undo日志的操作
                     deleteUndoLog(xid, branchId, conn);
                     // 提交事务
                     conn.commit();
@@ -230,7 +227,7 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
                                 xid, branchId, State.GlobalFinished.name());
                     }
                 } else {
-                    // 插入全局事务结束的 撤销语句
+                    // 按照注释的说法 好像是代表 一阶段提交失败了 需要确认数据库一致性  TODO 先不考虑复杂情况
                     insertUndoLogWithGlobalFinished(xid, branchId, UndoLogParserFactory.getInstance(), conn);
                     conn.commit();
                     if (LOGGER.isInfoEnabled()) {
@@ -240,6 +237,7 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
                 }
 
                 return;
+                // 这里的异常就是上面的 insertUndoLogWithGlobalFinished
             } catch (SQLIntegrityConstraintViolationException e) {
                 // Possible undo_log has been inserted into the database by other processes, retrying rollback undo_log
                 if (LOGGER.isInfoEnabled()) {
@@ -255,6 +253,7 @@ public class MySQLUndoLogManager extends AbstractUndoLogManager {
                         LOGGER.warn("Failed to close JDBC resource while undo ... ", rollbackEx);
                     }
                 }
+                // 返回一个需要重试的异常
                 throw new BranchTransactionException(BranchRollbackFailed_Retriable,
                     String.format("Branch session rollback failed and try again later xid = %s branchId = %s %s", xid, branchId, e.getMessage()), e);
 

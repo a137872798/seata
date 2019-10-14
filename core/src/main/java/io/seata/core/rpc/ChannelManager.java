@@ -134,7 +134,7 @@ public class ChannelManager {
         holder.setClientId(buildClientId(applicationId, channel));
         holder.setApplicationId(applicationId);
         holder.setTransactionServiceGroup(txServiceGroup);
-        // dbKeys 是什么 这里转换成 resource 并保存到set中
+        // dbKeys 默认传null
         holder.addResources(dbKeytoSet(dbkeys));
         holder.setChannel(channel);
         return holder;

@@ -173,13 +173,13 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
     @Override
     protected void doGlobalBegin(GlobalBeginRequest request, GlobalBeginResponse response, RpcContext rpcContext)
         throws TransactionException {
-        // 使用core 开启一个 事务 并将返回的 xid 设置到 response 中
+        // 使用core 开启一个 事务 并将返回的 xid 设置到 response 中   这里的 xid 是怎么产生的 以事务组为单位递增吗???
         response.setXid(core.begin(rpcContext.getApplicationId(), rpcContext.getTransactionServiceGroup(),
             request.getTransactionName(), request.getTimeout()));
     }
 
     /**
-     * 处理 事务提交
+     * 处理 全局事务提交
      * @param request    the request
      * @param response   the response
      * @param rpcContext the rpc context
@@ -537,6 +537,12 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
         }, UNDOLOG_DELAY_DELETE_PERIOD, UNDOLOG_DELETE_PERIOD, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * 处理事务相关的请求
+     * @param request received request message
+     * @param context context of the RPC
+     * @return
+     */
     @Override
     public AbstractResultMessage onRequest(AbstractMessage request, RpcContext context) {
         if (!(request instanceof AbstractTransactionRequestToTC)) {
@@ -544,7 +550,6 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
         }
         AbstractTransactionRequestToTC transactionRequest = (AbstractTransactionRequestToTC)request;
         transactionRequest.setTCInboundHandler(this);
-
         return transactionRequest.handle(context);
     }
 

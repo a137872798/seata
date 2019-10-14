@@ -109,7 +109,7 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
      */
     public boolean canBeCommittedAsync() {
         for (BranchSession branchSession : branchSessions) {
-            // TCC 不满足异步提交条件
+            // TCC 不能进行异步提交 因为AT 的 commit 只是删除undo日志
             if (branchSession.getBranchType() == BranchType.TCC) {
                 return false;
             }
@@ -164,8 +164,13 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
         return active;
     }
 
+    /**
+     * 关闭全局事务
+     * @throws TransactionException
+     */
     @Override
     public void close() throws TransactionException {
+        // 活跃状态触发所有钩子
         if (active) {
             for (SessionLifecycleListener lifecycleListener : lifecycleListeners) {
                 lifecycleListener.onClose(this);
@@ -298,6 +303,7 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
      * @param timeout                 the timeout
      */
     public GlobalSession(String applicationId, String transactionServiceGroup, String transactionName, int timeout) {
+        // 如果实现 全局唯一xid  这里使用了UUID + ip + port
         this.transactionId = UUIDGenerator.generateUUID();
         this.status = GlobalStatus.Begin;
 
@@ -436,7 +442,7 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
 
     /**
      * Create global session global session.
-     *
+     * 创建全局事务对象
      * @param applicationId  the application id
      * @param txServiceGroup the tx service group
      * @param txName         the tx name
@@ -636,6 +642,10 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
 
         private static final int GLOBAL_SESSION_LOCK_TIME_OUT_MILLS = 2 * 1000;
 
+        /**
+         * 对某个全局事务进行上锁 并且之后无法对该globalSession 注册新的branch
+         * @throws TransactionException
+         */
         public void lock() throws TransactionException {
             try {
                 if (globalSessionLock.tryLock(GLOBAL_SESSION_LOCK_TIME_OUT_MILLS, TimeUnit.MILLISECONDS)) {

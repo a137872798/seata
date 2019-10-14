@@ -162,7 +162,6 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
         if (evt instanceof IdleStateEvent) {
             debugLog("idle:" + evt);
             IdleStateEvent idleStateEvent = (IdleStateEvent)evt;
-            // 长时间没有收到client 的心跳包 就关闭连接  如果server 需要往所有维护的 client 主动发送心跳包 性能消耗会比较大
             if (idleStateEvent.state() == IdleState.READER_IDLE) {
                 if (LOGGER.isInfoEnabled()) {
                     LOGGER.info("channel:" + ctx.channel() + " read idle.");
@@ -282,10 +281,11 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
         } else {
             // 代表是事务消息 事务消息的话首先要确保当前channel 已经注册
             if (ChannelManager.isRegistered(ctx.channel())) {
+                // 处理事务相关的消息 比如 全局事务注册  分事务提交 分事务回滚
                 serverMessageListener.onTrxMessage(request, ctx, this);
             } else {
                 try {
-                    // channel 还没有注册 这里关闭channel
+                    // channel 还没有注册 这里关闭channel  且没有返回任何结果 那么对端就会自动超时
                     closeChannelHandlerContext(ctx);
                 } catch (Exception exx) {
                     LOGGER.error(exx.getMessage());
@@ -339,7 +339,7 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
 
     /**
      * Channel read.
-     * 当收到消息时  这层会拦截 RpcMessage 有点类似于 dubbo 每层抽象对应拦截一种消息
+     * TC 端处理收到的请求 比如 RM 注册 TM 开启全局事务
      * @param ctx the ctx
      * @param msg the msg
      * @throws Exception the exception
@@ -350,11 +350,12 @@ public class RpcServer extends AbstractRpcRemotingServer implements ServerMessag
         if (msg instanceof RpcMessage) {
             RpcMessage rpcMessage = (RpcMessage) msg;
             debugLog("read:" + rpcMessage.getBody());
-            // 分发请求
+            // 每个client 启动时 会通过TM 向 同一事务组的 TC 发送注册请求 也就是RegisterTMRequest
             if (rpcMessage.getBody() instanceof RegisterTMRequest) {
                 serverMessageListener.onRegTmMessage(rpcMessage, ctx, this, checkAuthHandler);
                 return;
             }
+            // 在 seata 中 心跳是由 client 向服务器发出 服务器返回PONG
             if (rpcMessage.getBody() == HeartbeatMessage.PING) {
                 serverMessageListener.onCheckMessage(rpcMessage, ctx, this);
                 return;

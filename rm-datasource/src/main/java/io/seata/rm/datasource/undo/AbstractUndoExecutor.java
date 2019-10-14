@@ -108,7 +108,7 @@ public abstract class AbstractUndoExecutor {
      */
     public void executeOn(Connection conn) throws SQLException {
 
-        // 未通过校验时 直接返回
+        // 判断是否允许借助undo日志进行回滚   dataValidationAndGoOn 代表前后数据是否发生变化
         if (IS_UNDO_DATA_VALIDATION_ENABLE && !dataValidationAndGoOn(conn)) {
             return;
         }
@@ -120,7 +120,7 @@ public abstract class AbstractUndoExecutor {
             // 使用语句生成携带参数的statement
             PreparedStatement undoPST = conn.prepareStatement(undoSQL);
 
-            // 获取待撤销的行  该方法由子类实现
+            // 获取 undo日志本身
             TableRecords undoRows = getUndoRows();
 
             for (Row undoRow : undoRows.getRows()) {
@@ -214,7 +214,7 @@ public abstract class AbstractUndoExecutor {
 
         // Compare current data with before data
         // No need undo if the before data snapshot is equivalent to the after data snapshot.
-        // 判断前后数据是否相同
+        // 判断前后数据是否相同 数据相同就无法通过 undo日志进行回滚了
         Result<Boolean> beforeEqualsAfterResult = DataCompareUtils.isRecordsEquals(beforeRecords, afterRecords);
         // 如果数据没有发生变化 不允许执行回滚操作
         if (beforeEqualsAfterResult.getResult()) {

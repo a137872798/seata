@@ -139,7 +139,6 @@ public abstract class AbstractExceptionHandler {
     public void exceptionHandleTemplate(Callback callback, AbstractTransactionRequest request,
         AbstractTransactionResponse response) {
         try {
-            // 为什么execute 方法 会放在 callback里
             callback.execute(request, response);
             callback.onSuccess(request, response);
         } catch (TransactionException tex) {

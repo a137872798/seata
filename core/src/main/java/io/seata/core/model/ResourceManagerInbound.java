@@ -40,7 +40,7 @@ public interface ResourceManagerInbound {
 
     /**
      * Rollback a branch transaction.
-     *
+     * 回滚某个分事务
      * @param branchType      the branch type
      * @param xid             Transaction id.
      * @param branchId        Branch id.

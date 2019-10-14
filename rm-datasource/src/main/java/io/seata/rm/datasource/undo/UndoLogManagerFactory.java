@@ -24,7 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 撤销日志的 管理工厂
+ * undo日志的 管理工厂
  * @author jsbxyyx
  * @date 2019/09/07
  */

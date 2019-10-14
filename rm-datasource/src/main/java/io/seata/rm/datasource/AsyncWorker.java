@@ -48,7 +48,7 @@ import static io.seata.core.constants.ConfigurationKeys.CLIENT_ASYNC_COMMIT_BUFF
 
 /**
  * The type Async worker.
- * 异步工作对象  一般是当二阶段事务提交成功时 删除undo日志
+ * 用于处理 异步提交分事务
  * @author sharajava
  */
 public class AsyncWorker implements ResourceManagerInbound {
@@ -95,7 +95,6 @@ public class AsyncWorker implements ResourceManagerInbound {
         String resourceId;
         /**
          * The Application data.
-         * 应用数据 难道是序列化过的???
          */
         String applicationData;
 
@@ -109,7 +108,7 @@ public class AsyncWorker implements ResourceManagerInbound {
             CLIENT_ASYNC_COMMIT_BUFFER_LIMIT, 10000);
 
     /**
-     * 待删除的undo 日志存储队列
+     * 存放异步提交任务的队列
      */
     private static final BlockingQueue<Phase2Context> ASYNC_COMMIT_BUFFER = new LinkedBlockingQueue<>(ASYNC_COMMIT_BUFFER_LIMIT);
 
@@ -119,6 +118,16 @@ public class AsyncWorker implements ResourceManagerInbound {
      */
     private static ScheduledExecutorService timerExecutor;
 
+    /**
+     * 提交分事务
+     * @param branchType      the branch type
+     * @param xid             Transaction id.
+     * @param branchId        Branch id.
+     * @param resourceId      Resource id.
+     * @param applicationData Application data bind with this branch.
+     * @return
+     * @throws TransactionException
+     */
     @Override
     public BranchStatus branchCommit(BranchType branchType, String xid, long branchId, String resourceId, String applicationData) throws TransactionException {
         // 当无法提交任务时 提示异常信息
@@ -141,7 +150,7 @@ public class AsyncWorker implements ResourceManagerInbound {
             public void run() {
                 try {
 
-                    // 该线程池 专门执行commit 任务
+                    // 该线程池 专门执行commit 任务  相当于 分事务的 commit 是异步提交的
                     doBranchCommits();
 
                 } catch (Throwable e) {

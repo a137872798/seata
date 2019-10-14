@@ -89,6 +89,16 @@ public class DefaultResourceManager implements ResourceManager {
         return getResourceManager(branchType).branchCommit(branchType, xid, branchId, resourceId, applicationData);
     }
 
+    /**
+     * 使用RM 进行回滚
+     * @param branchType      the branch type
+     * @param xid             Transaction id.
+     * @param branchId        Branch id.
+     * @param resourceId      Resource id.
+     * @param applicationData Application data bind with this branch.
+     * @return
+     * @throws TransactionException
+     */
     @Override
     public BranchStatus branchRollback(BranchType branchType, String xid, long branchId,
                                        String resourceId, String applicationData)
