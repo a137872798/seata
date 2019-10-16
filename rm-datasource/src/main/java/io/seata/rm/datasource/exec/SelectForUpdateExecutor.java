@@ -97,7 +97,6 @@ public class SelectForUpdateExecutor<T, S extends Statement> extends BaseTransac
                     // 代表在全局事务中需要检查锁的状态
                     if (RootContext.inGlobalTransaction()) {
                         //do as usual  当访问TC 时发现锁已存在 就抛出锁冲突异常 这样会进入下次循环 直到 加了全局锁的某个事务释放锁
-                        // TODO 这里同时应该也是加锁了吧
                         statementProxy.getConnectionProxy().checkLock(lockKeys);
                     // 如果使用了 @GlobalLock 注解 将需要加锁的字段设置到 connectionContext 中
                     } else if (RootContext.requireGlobalLock()) {

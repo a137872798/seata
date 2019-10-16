@@ -128,6 +128,7 @@ public class DatabaseTransactionStoreManager extends AbstractTransactionStoreMan
         } else if (LogOperation.GLOBAL_REMOVE.equals(logOperation)) {
             logStore.deleteGlobalTransactionDO(convertGlobalTransactionDO(session));
         } else if (LogOperation.BRANCH_ADD.equals(logOperation)) {
+            // 插入 branch
             logStore.insertBranchTransactionDO(convertBranchTransactionDO(session));
         } else if (LogOperation.BRANCH_UPDATE.equals(logOperation)) {
             logStore.updateBranchTransactionDO(convertBranchTransactionDO(session));

@@ -99,11 +99,11 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
         if (RootContext.inGlobalTransaction()) {
             // 获取全局事务id
             String xid = RootContext.getXID();
-            // 将会话绑定到该事务上
+            // 将会话绑定到该上下文中
             statementProxy.getConnectionProxy().bind(xid);
         }
 
-        // 判断是否需要全局锁  应该是拦截器在处理 @GlobalLock 注解相关的方法时 设置的
+        // 判断是否需要全局锁 也是添加到 上下文中  应该是拦截器在处理 @GlobalLock 注解相关的方法时 设置的
         if (RootContext.requireGlobalLock()) {
             statementProxy.getConnectionProxy().setGlobalLockRequire(true);
         } else {
@@ -234,6 +234,7 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
 
         ConnectionProxy connectionProxy = statementProxy.getConnectionProxy();
 
+        // 在全局事务还没有提交前 快照中的数据是不允许被访问的 也就是需要上锁
         TableRecords lockKeyRecords = sqlRecognizer.getSQLType() == SQLType.DELETE ? beforeImage : afterImage;
         // 构建锁语句
         String lockKeys = buildLockKey(lockKeyRecords);

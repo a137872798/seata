@@ -48,7 +48,7 @@ public interface Core extends TransactionManager, ResourceManagerOutbound {
      * Do global rollback.
      * 执行全局回滚
      * @param globalSession the global session
-     * @param retrying      the retrying  代表是否是 重试的回滚
+     * @param retrying      the retrying  代表是否是在重试定时器中执行的
      * @throws TransactionException the transaction exception
      */
     void doGlobalRollback(GlobalSession globalSession, boolean retrying) throws TransactionException;

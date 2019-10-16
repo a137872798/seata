@@ -93,6 +93,7 @@ public class GlobalTransactionalInterceptor implements MethodInterceptor {
 
         // 获取方法上的 注解
         final GlobalTransactional globalTransactionalAnnotation = getAnnotation(method, GlobalTransactional.class);
+        // 该注解声明了 本事务 虽然不在全局事务中执行 但是必须确保关联的数据 如果正在某个全局事务中 必须对它可见（也就是等待全局事务更新完成）
         final GlobalLock globalLockAnnotation = getAnnotation(method, GlobalLock.class);
         if (globalTransactionalAnnotation != null) {
             // 处理全局事务

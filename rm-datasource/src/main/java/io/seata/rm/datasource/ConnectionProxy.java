@@ -218,7 +218,6 @@ public class ConnectionProxy extends AbstractConnectionProxy {
             processGlobalTransactionCommit();
             // 判断是否需要 获取全局锁
         } else if (context.isGlobalLockRequire()) {
-            // TODO
             // 在获取全局锁的基础上 执行本地提交
             processLocalCommitWithGlobalLocks();
         } else {

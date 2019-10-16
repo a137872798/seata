@@ -57,7 +57,8 @@ public class TransactionalTemplate {
         try {
 
             // 2. begin transaction
-            // 开始执行事务
+            // 开始执行事务  如果发现当前线程上下文没有XID 代表是第一个分布式事务 那么本服务就会作为全局事务的 发起者 通过TM 向TC 注册全局 事务并在上下文中追加xid
+            // 如果当前服务是 全局事务中的参与者 只是做简单的检查
             beginTransaction(txInfo, tx);
 
             Object rs = null;
@@ -65,19 +66,19 @@ public class TransactionalTemplate {
 
                 // Do Your Business
                 // 执行业务逻辑  就是在这层会调用到其他需要事务的服务 这样 通过传播xid 其他服务也就包裹在一个事务中 (前提是其他服务方法被@GlobalTransactional 注解修饰)
+                // 注意 业务的执行中本地事务相关的由 ConnectionProxy 去处理 在该对象中封装了 上报 branch状态 注册 branch 到globalSession 中等操作
                 rs = business.execute();
 
             } catch (Throwable ex) {
 
                 // 3.the needed business exception to rollback.
-                // 当执行事务遇到异常时触发 这里的异常会抛到 execute() 之外
-                // 如果内层的 事务 抛出异常了 会不断传递 直到 发起者
+                // 分支出现异常没有直接回滚 而是不断向上抛出直到 发起者 之后由发起者触发全局回滚
                 completeTransactionAfterThrowing(txInfo,tx,ex);
                 throw ex;
             }
 
             // 4. everything is fine, commit.
-            // 提交事务
+            // 分事务没有执行提交
             commitTransaction(tx);
 
             return rs;
@@ -99,7 +100,8 @@ public class TransactionalTemplate {
      */
     private void completeTransactionAfterThrowing(TransactionInfo txInfo, GlobalTransaction tx, Throwable ex) throws TransactionalExecutor.ExecutionException {
         //roll back
-        // 代表遇到该异常允许进行回滚
+        // 代表遇到该异常允许进行回滚  默认情况全局事务是不会针对任何异常进行回滚的 一般要添加 rollbackOn = Exception.class
+        // 在执行分事务过程中 rollback 只是会上报状态 当抛出的异常被 最外层的事务捕获时 向TC 发起全局回滚 之后TC 根据每个分事务的状态进行处理 比如一开始分事务就每提交成功 就不需要再进行还原了
         if (txInfo != null && txInfo.rollbackOn(ex)) {
             try {
                 // 回滚事务
@@ -162,7 +164,7 @@ public class TransactionalTemplate {
         try {
             // 获取所有前置钩子并执行
             triggerBeforeBegin();
-            // 开始执行事务  实际上是 通过通知 TC 做协调
+            // 开始执行事务  将一个全局事务注册到TC 上 这里还声明了 超时时间 在TC 上有个检测超时globalSession的后台线程一旦发现 超时就会自动设置成回滚
             tx.begin(txInfo.getTimeOut(), txInfo.getName());
             // 触发 begin 的后置钩子
             triggerAfterBegin();

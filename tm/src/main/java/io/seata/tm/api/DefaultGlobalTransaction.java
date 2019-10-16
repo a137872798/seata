@@ -162,7 +162,7 @@ public class DefaultGlobalTransaction implements GlobalTransaction {
      */
     @Override
     public void rollback() throws TransactionException {
-        // 如果当前角色是 参与者 不允许参与者 进行回滚
+        // 如果当前角色是 参与者 不允许回滚
         if (role == GlobalTransactionRole.Participant) {
             // Participant has no responsibility of committing
             if (LOGGER.isDebugEnabled()) {

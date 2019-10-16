@@ -90,7 +90,7 @@ public class DefaultResourceManager implements ResourceManager {
     }
 
     /**
-     * 使用RM 进行回滚
+     * 接受由 TC 发起的全局回滚下发请求到某个 branch 中 回滚本地事务
      * @param branchType      the branch type
      * @param xid             Transaction id.
      * @param branchId        Branch id.

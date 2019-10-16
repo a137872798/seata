@@ -180,7 +180,7 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
 
     @Override
     public void end() throws TransactionException {
-        // Clean locks first
+        // Clean locks first 释放所有分事务锁
         clean();
 
         for (SessionLifecycleListener lifecycleListener : lifecycleListeners) {

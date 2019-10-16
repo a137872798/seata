@@ -57,6 +57,7 @@ public abstract class AbstractLocker implements Locker {
             lockDO.setBranchId(rowLock.getBranchId());
             lockDO.setPk(rowLock.getPk());
             lockDO.setResourceId(rowLock.getResourceId());
+            // 该字段就是用来查询 锁语句的关键字
             lockDO.setRowKey(getRowKey(rowLock.getResourceId(), rowLock.getTableName(), rowLock.getPk()));
             lockDO.setXid(rowLock.getXid());
             lockDO.setTransactionId(rowLock.getTransactionId());

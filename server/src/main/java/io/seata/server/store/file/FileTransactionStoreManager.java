@@ -186,7 +186,7 @@ public class FileTransactionStoreManager extends AbstractTransactionStoreManager
     }
 
     /**
-     * 将 session 根据指定的operation 写入
+     * 创建全局session 时触发
      * @param logOperation the log operation
      * @param session      the session
      * @return
@@ -665,7 +665,7 @@ public class FileTransactionStoreManager extends AbstractTransactionStoreManager
                     LOGGER.error("write file error: {}", exx.getMessage(), exx);
                 }
             }
-            // 处理内部维护的请求对象
+            // 退出任务前将所有存储任务处理完
             handleRestRequest();
         }
 
@@ -680,7 +680,7 @@ public class FileTransactionStoreManager extends AbstractTransactionStoreManager
         }
 
         /**
-         * 处理刷盘请求
+         * 满足条件的才能刷盘
          * @param storeRequest
          */
         private void handleStoreRequest(StoreRequest storeRequest) {

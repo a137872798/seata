@@ -21,7 +21,7 @@ import io.seata.core.rpc.netty.RmRpcClient;
 /**
  * The Rm client Initiator.
  * 资源管理器   该对象相当于一个 入口 用于初始化  RmRpcClient 对象
- * @author jimin.jm @alibaba-inc.com
+ * @author ji.jm @alibaba-inc.com
  */
 public class RMClient {
 

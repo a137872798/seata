@@ -324,7 +324,7 @@ public class LockStoreDataBaseDAO implements LockStore, Initialize {
 
     /**
      * Check lock boolean.
-     * 这里会直接进行commit
+     * 查询是否存在给定字段
      * @param conn    the conn
      * @param lockDOs the lock do
      * @return the boolean
@@ -348,6 +348,7 @@ public class LockStoreDataBaseDAO implements LockStore, Initialize {
                 ps.setString(i + 1, lockDOs.get(i).getRowKey());
             }
             rs = ps.executeQuery();
+            // 这里应该是 隐藏了 重入锁 和 无锁的情况  只有有数据且 xid 不同的情况 才代表不能加锁
             while (rs.next()) {
                 String xid = rs.getString("xid");
                 if (!StringUtils.equals(xid, lockDOs.get(0).getXid())) {

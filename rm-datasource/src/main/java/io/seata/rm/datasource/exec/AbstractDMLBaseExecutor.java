@@ -81,7 +81,7 @@ public abstract class AbstractDMLBaseExecutor<T, S extends Statement> extends Ba
         T result = statementCallback.execute(statementProxy.getTargetStatement(), args);
         // 生成快照 便于回滚
         TableRecords afterImage = afterImage(beforeImage);
-        // 生成undo 日志
+        // 生成undo 日志  并且将快照相关的数据 添加到上下文的锁字段中 因为该全局事务未完成 数据是不能被访问到的
         prepareUndoLog(beforeImage, afterImage);
         return result;
     }
@@ -110,7 +110,6 @@ public abstract class AbstractDMLBaseExecutor<T, S extends Statement> extends Ba
             // when exception occur in finally,this exception will lost, so just print it here
             LOGGER.error("execute executeAutoCommitTrue error:{}", e.getMessage(), e);
             if (!LockRetryPolicy.isLockRetryPolicyBranchRollbackOnConflict()) {
-                // 回滚结果要上报到 TC 上
                 connectionProxy.getTargetConnection().rollback();
             }
             throw e;

@@ -57,6 +57,7 @@ public class DefaultLockManager extends AbstractLockManager {
             throw new IllegalArgumentException("branchSession can't be null for memory/file locker.");
         }
         String lockKey = branchSession.getLockKey();
+        // 如果没有需要上锁的字段 直接返回上锁成功
         if (StringUtils.isNullOrEmpty(lockKey)) {
             //no lock
             return true;
@@ -102,6 +103,7 @@ public class DefaultLockManager extends AbstractLockManager {
                 locks.addAll(collectRowLocks(branchSession));
             }
             try {
+                // 释放所有分事务的锁  因为在某个全局事务中分事务都需要加锁才能保证 不被其他事务影响到
                 return this.doReleaseLock(locks, null);
             } catch (Exception t) {
                 LOGGER.error("unLock globalSession error, xid:{}", globalSession.getXid(), t);

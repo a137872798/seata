@@ -157,6 +157,12 @@ public abstract class AbstractSessionManager implements SessionManager, SessionL
         addGlobalSession(globalSession);
     }
 
+    /**
+     * 更新全局事务状态
+     * @param globalSession the global session
+     * @param status        the status
+     * @throws TransactionException
+     */
     @Override
     public void onStatusChange(GlobalSession globalSession, GlobalStatus status) throws TransactionException {
         updateGlobalSessionStatus(globalSession, status);
@@ -168,6 +174,12 @@ public abstract class AbstractSessionManager implements SessionManager, SessionL
         updateBranchSessionStatus(branchSession, status);
     }
 
+    /**
+     * 当某个 branch 添加时触发
+     * @param globalSession the global session
+     * @param branchSession the branch session
+     * @throws TransactionException
+     */
     @Override
     public void onAddBranch(GlobalSession globalSession, BranchSession branchSession) throws TransactionException {
         addBranchSession(globalSession, branchSession);

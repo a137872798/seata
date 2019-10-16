@@ -88,6 +88,7 @@ public class DataBaseSessionManager extends AbstractSessionManager
     // 下面的操作 基本都会涉及到taskName的判断
 
     /**
+     * 代表开启一个全局事务
      * @param session the session
      * @throws TransactionException
      */
@@ -100,7 +101,6 @@ public class DataBaseSessionManager extends AbstractSessionManager
                 throw new StoreException("addGlobalSession failed.");
             }
         } else {
-            // 异步模式 可能全局事务的记录还在数据库中 那么就进行更新
             boolean ret = transactionStoreManager.writeSession(LogOperation.GLOBAL_UPDATE, session);
             if (!ret) {
                 throw new StoreException("addGlobalSession failed.");
@@ -109,7 +109,7 @@ public class DataBaseSessionManager extends AbstractSessionManager
     }
 
     /**
-     * 异步模式才有更新的必要
+     * 异步模式不允许更新
      * @param session the session
      * @param status  the status
      * @throws TransactionException
@@ -119,6 +119,7 @@ public class DataBaseSessionManager extends AbstractSessionManager
         if (StringUtils.isNotBlank(taskName)) {
             return;
         }
+        // 更新事务状态并持久化
         session.setStatus(status);
         boolean ret = transactionStoreManager.writeSession(LogOperation.GLOBAL_UPDATE, session);
         if (!ret) {
@@ -126,6 +127,11 @@ public class DataBaseSessionManager extends AbstractSessionManager
         }
     }
 
+    /**
+     * 移除全局事务
+     * @param session the session
+     * @throws TransactionException
+     */
     @Override
     public void removeGlobalSession(GlobalSession session) throws TransactionException {
         if (StringUtils.isNotBlank(taskName)) {
@@ -137,6 +143,12 @@ public class DataBaseSessionManager extends AbstractSessionManager
         }
     }
 
+    /**
+     * 为 globalSession 增加 branchSession
+     * @param globalSession the global session
+     * @param session       the session
+     * @throws TransactionException
+     */
     @Override
     public void addBranchSession(GlobalSession globalSession, BranchSession session) throws TransactionException {
         if (StringUtils.isNotBlank(taskName)) {

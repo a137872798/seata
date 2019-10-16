@@ -173,7 +173,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
     @Override
     protected void doGlobalBegin(GlobalBeginRequest request, GlobalBeginResponse response, RpcContext rpcContext)
         throws TransactionException {
-        // 使用core 开启一个 事务 并将返回的 xid 设置到 response 中   这里的 xid 是怎么产生的 以事务组为单位递增吗???
+        // 使用core 开启一个 事务 并将返回的 xid 设置到 response 中   xid 使用UUID + ip.port 保证全局唯一
         response.setXid(core.begin(rpcContext.getApplicationId(), rpcContext.getTransactionServiceGroup(),
             request.getTransactionName(), request.getTimeout()));
     }
@@ -207,21 +207,43 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
 
     }
 
+    /**
+     * 获取当前全局事务状态
+     * @param request    the request
+     * @param response   the response
+     * @param rpcContext the rpc context
+     * @throws TransactionException
+     */
     @Override
     protected void doGlobalStatus(GlobalStatusRequest request, GlobalStatusResponse response, RpcContext rpcContext)
         throws TransactionException {
         response.setGlobalStatus(core.getStatus(request.getXid()));
     }
 
+    /**
+     * 注册某个 branch 事务
+     * @param request    the request  注意请求体中是可以设置要上锁的字段的 该字段会在 commit/rollback 全局事务时释放
+     * @param response   the response
+     * @param rpcContext the rpc context
+     * @throws TransactionException
+     */
     @Override
     protected void doBranchRegister(BranchRegisterRequest request, BranchRegisterResponse response,
                                     RpcContext rpcContext) throws TransactionException {
         response.setBranchId(
+                // 注册分事务
             core.branchRegister(request.getBranchType(), request.getResourceId(), rpcContext.getClientId(),
                 request.getXid(), request.getApplicationData(), request.getLockKey()));
 
     }
 
+    /**
+     * 上报 TC 某个 branch 的处理结果
+     * @param request    the request
+     * @param response
+     * @param rpcContext the rpc context
+     * @throws TransactionException
+     */
     @Override
     protected void doBranchReport(BranchReportRequest request, BranchReportResponse response, RpcContext rpcContext)
         throws TransactionException {
@@ -231,6 +253,13 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
 
     }
 
+    /**
+     * 检查能否加锁 锁的范围是 tableName + xid + pks  也就是无关resourceId
+     * @param request    the request
+     * @param response   the response
+     * @param rpcContext the rpc context
+     * @throws TransactionException
+     */
     @Override
     protected void doLockCheck(GlobalLockQueryRequest request, GlobalLockQueryResponse response, RpcContext rpcContext)
         throws TransactionException {
@@ -241,7 +270,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
     // 以上方法实质上都是通过 委托给core 来执行的
 
     /**
-     * 某个分支事务 触发提交
+     * 下发提交分事务的请求到某个 branch 在globalSession commit 后触发
      * @param branchType      the branch type
      * @param xid             Transaction id.
      * @param branchId        Branch id.
@@ -268,7 +297,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
             }
             BranchSession branchSession = globalSession.getBranch(branchId);
 
-            // 往服务端发送请求
+            // 往client发送请求
             BranchCommitResponse response = (BranchCommitResponse)messageSender.sendSyncRequest(resourceId,
                 branchSession.getClientId(), request);
             return response.getBranchStatus();
@@ -319,10 +348,11 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
 
     /**
      * Timeout check.
-     *
+     * 检查当前 处理begin 的所有全局事务是否有超时 有的话加入到retryRollback中
      * @throws TransactionException the transaction exception
      */
     protected void timeoutCheck() throws TransactionException {
+        // 获取所有全局事务
         Collection<GlobalSession> allSessions = SessionHolder.getRootSessionManager().allSessions();
         if (CollectionUtils.isEmpty(allSessions)) {
             return;
@@ -335,12 +365,16 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
                 LOGGER.debug(globalSession.getXid() + " " + globalSession.getStatus() + " " +
                     globalSession.getBeginTime() + " " + globalSession.getTimeout());
             }
+            // 为什么可以用 JVM 锁 难道能保证始终选择同一个TC对象吗???
             boolean shouldTimeout = globalSession.lockAndExcute(() -> {
+                // 代表启动的 事务在指定时间内没有commit 就会自动进入回滚状态
                 if (globalSession.getStatus() != GlobalStatus.Begin || !globalSession.isTimeout()) {
                     return false;
                 }
+                // 超时 session 需要被关闭
                 globalSession.addSessionLifecycleListener(SessionHolder.getRootSessionManager());
                 globalSession.close();
+                // 将数据持久化
                 globalSession.changeStatus(GlobalStatus.TimeoutRollbacking);
 
                 //transaction timeout and start rollbacking event
@@ -369,7 +403,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
 
     /**
      * Handle retry rollbacking.
-     * 重试回滚
+     * 处理回滚失败的请求
      */
     protected void handleRetryRollbacking() {
         // 找到 所有事务状态为 重试回滚的数据
@@ -391,9 +425,10 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
                 }
                 // 每次查询出来的都是 新对象 所以需要设置 监听器
                 rollbackingSession.addSessionLifecycleListener(SessionHolder.getRootSessionManager());
-                // 使用core 触发回滚方法
+                // 使用core 触发同步回滚方法 成功后将 globalSession 从表中删除(具体见end()方法)
                 core.doGlobalRollback(rollbackingSession, true);
             } catch (TransactionException ex) {
+                // 重试失败的情况下 等待下次定时任务 并继续重试 直到超时重试时间
                 LOGGER.info("Failed to retry rollbacking [{}] {} {}",
                     rollbackingSession.getXid(), ex.getCode(), ex.getMessage());
             }
@@ -402,6 +437,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
 
     /**
      * Handle retry committing.
+     * 处理提交失败
      */
     protected void handleRetryCommitting() {
         Collection<GlobalSession> committingSessions = SessionHolder.getRetryCommittingSessionManager().allSessions();
@@ -465,6 +501,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
 
     /**
      * Undo log delete.
+     * 删除 回滚日志
      */
     protected void undoLogDelete() {
         Map<String,Channel> rmChannels = ChannelManager.getRmChannels();
@@ -527,7 +564,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler
             }
         }, 0, TIMEOUT_RETRY_PERIOD, TimeUnit.MILLISECONDS);
 
-        // 删除回滚日志
+        // 删除回滚日志  1天删除一次
         undoLogDelete.scheduleAtFixedRate(() -> {
             try {
                 undoLogDelete();

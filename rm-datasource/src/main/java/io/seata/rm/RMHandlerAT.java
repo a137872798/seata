@@ -41,22 +41,20 @@ public class RMHandlerAT extends AbstractRMHandler {
     private static final int LIMIT_ROWS = 3000;
 
     /**
-     * 代表处理逻辑
+     * 处理删除undo 日志的请求
      * @param request the request
      */
     @Override
     public void handle(UndoLogDeleteRequest request) {
         // 获取Manager对象
         DataSourceManager dataSourceManager = (DataSourceManager)getResourceManager();
-        // Manager对象 以 resourceId 作为key value 则是对应的数据源对象 (因为创建该对象开销比较大 所以需要做缓存)
-        // 这里数据源是 怎么产生的
         DataSourceProxy dataSourceProxy = dataSourceManager.get(request.getResourceId());
         // 如果缓存对象不存在 直接返回
         if (dataSourceProxy == null) {
             LOGGER.warn("Failed to get dataSourceProxy for delete undolog on " + request.getResourceId());
             return;
         }
-        // 推算出日志的创建时间
+        // 推算出允许删除的日志的创建时间
         Date logCreatedSave = getLogCreated(request.getSaveDays());
         Connection conn = null;
         try {
@@ -92,7 +90,6 @@ public class RMHandlerAT extends AbstractRMHandler {
     }
 
     /**
-     * 计算日志生成时间
      * @param saveDays
      * @return
      */

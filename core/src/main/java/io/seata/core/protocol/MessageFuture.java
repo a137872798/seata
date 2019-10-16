@@ -63,7 +63,6 @@ public class MessageFuture {
         InterruptedException {
         Object result = null;
         try {
-            // 超时等待结果  这个对象的初始化数据呢 难道是通过从外部设置future 来触发 那只是设置一组简单的动作???
             result = origin.get(timeout, unit);
         } catch (ExecutionException e) {
             throw new ShouldNeverHappenException("Should not get results in a multi-threaded environment", e);

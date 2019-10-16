@@ -34,7 +34,7 @@ public interface UndoLogManager {
 
     /**
      * Flush undo logs.
-     * 执行当前维护的 撤销日志
+     * 将上下文中的 undo 日志持久化
      * @param cp the cp
      * @throws SQLException the sql exception
      */
@@ -42,7 +42,7 @@ public interface UndoLogManager {
 
     /**
      * Undo.
-     * 生成撤销日志
+     * 使用undo 日志进行回滚
      * @param dataSourceProxy the data source proxy
      * @param xid             the xid
      * @param branchId        the branch id

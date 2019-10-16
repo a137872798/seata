@@ -49,7 +49,7 @@ public class ExecuteTemplate {
 
     /**
      * Execute t.
-     *
+     * 这里是在 全局事务中的分事务下 开始执行自己的会话
      * @param <T>               the type parameter
      * @param <S>               the type parameter
      * @param sqlRecognizer     the sql recognizer    sql 解析器 看来还支持sql本身是动态的 sql语句配合该解析器 已经传入的一组参数 执行sql
@@ -83,7 +83,7 @@ public class ExecuteTemplate {
         if (sqlRecognizer == null) {
             executor = new PlainExecutor<T, S>(statementProxy, statementCallback);
         } else {
-            // 生成对应的 执行器对象
+            // 生成对应的 执行器对象  这些执行器 会在执行对应的操作时生成前后快照 并包装成undo日志 之后如果需要回滚本地事务 就可以根据undo日志还原 且对业务隐藏
             switch (sqlRecognizer.getSQLType()) {
                 case INSERT:
                     executor = new InsertExecutor<T, S>(statementProxy, statementCallback, sqlRecognizer);
