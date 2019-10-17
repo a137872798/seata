@@ -299,7 +299,8 @@ public abstract class AbstractRpcRemoting extends ChannelDuplexHandler implement
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("offer message: " + rpcMessage.getBody());
             }
-            // 未发送情况下 唤醒发送
+            // 未发送情况下 唤醒发送  代表着这一层的消息是不能等待的 必须立即发送 一些无关紧要的消息可以批量发送
+            // 这层发送的一般就是事务相关的消息了
             if (!isSending) {
                 synchronized (mergeLock) {
                     mergeLock.notifyAll();

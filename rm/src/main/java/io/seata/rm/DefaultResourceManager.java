@@ -112,7 +112,7 @@ public class DefaultResourceManager implements ResourceManager {
      * @param resourceId the resource id
      * @param clientId   the client id
      * @param xid        the xid
-     * @param applicationData the context
+     * @param applicationData the context  这个值对应TCC 下保存的 上下文
      * @param lockKeys   the lock keys
      * @return
      * @throws TransactionException

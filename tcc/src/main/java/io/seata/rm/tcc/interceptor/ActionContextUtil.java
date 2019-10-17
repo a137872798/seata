@@ -36,7 +36,7 @@ public class ActionContextUtil {
 
     /**
      * Extracting context data from parameters
-     *
+     * 从目标参数中抽取属性
      * @param targetParam the target param
      * @return map map
      */
@@ -47,6 +47,7 @@ public class ActionContextUtil {
             getAllField(targetParam.getClass(), fields);
             for (Field f : fields) {
                 String fieldName = f.getName();
+                // 获取所有 携带 @BusinessActionContextParameter 注解的字段
                 Annotation annotation = f.getAnnotation(BusinessActionContextParameter.class);
 
                 if (annotation != null) {
@@ -57,6 +58,7 @@ public class ActionContextUtil {
                     if (index >= 0) {
                         @SuppressWarnings("unchecked")
                         Object targetObject = ((List<Object>)paramObject).get(index);
+                        // 递归继续尝试添加属性
                         if (param.isParamInProperty()) {
                             context.putAll(fetchContextFromObject(targetObject));
                         } else {

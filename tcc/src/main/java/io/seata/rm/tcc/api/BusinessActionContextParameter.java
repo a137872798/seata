@@ -48,7 +48,7 @@ public @interface BusinessActionContextParameter {
 
     /**
      * Specify the index of the parameter in the List
-     * 该参数下标
+     * 首先代表该注解修饰的是一个list 且index 对应的值是需要的参数
      * @return int int
      */
     int index() default -1;

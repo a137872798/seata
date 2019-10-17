@@ -50,6 +50,7 @@ public class TccActionInterceptor implements MethodInterceptor {
 
     /**
      * remoting bean info
+     * RPC调用bean 的描述信息
      */
     protected RemotingDesc remotingDesc;
 
@@ -69,19 +70,20 @@ public class TccActionInterceptor implements MethodInterceptor {
     }
 
     /**
-     * 拦截方法
+     * 拦截方法  这样理解 使用 @Reference 注解去引入某个bean 时 优先使用TCC 模式 实际上AT也实现了跨服务的事务啊 为什么要默认使用TCC
      * @param invocation
      * @return
      * @throws Throwable
      */
     @Override
     public Object invoke(final MethodInvocation invocation) throws Throwable {
-        // 非全局事务下按
+        // 使用该拦截器拦截时 首先要确保在全局事务中
         if(!RootContext.inGlobalTransaction()){
             //not in transaction
             return invocation.proceed();
         }
         Method method = getActionInterfaceMethod(invocation);
+        // 获取二阶段事务注解
         TwoPhaseBusinessAction businessAction = method.getAnnotation(TwoPhaseBusinessAction.class);
         //try method
         if (businessAction != null) {

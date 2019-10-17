@@ -46,10 +46,10 @@ public class ActionInterceptorHandler {
     /**
      * Handler the TCC Aspect
      *
-     * @param method         the method
-     * @param arguments      the arguments
-     * @param businessAction the business action
-     * @param targetCallback the target callback
+     * @param method         the method  被调用的方法
+     * @param arguments      the arguments  入参
+     * @param businessAction the business action  全局事务id
+     * @param targetCallback the target callback   真正执行事务的方法
      * @return map map
      * @throws Throwable the throwable
      */
@@ -61,15 +61,17 @@ public class ActionInterceptorHandler {
         String actionName = businessAction.name();
         BusinessActionContext actionContext = new BusinessActionContext();
         actionContext.setXid(xid);
-        //set action anme
+        //set action name
         actionContext.setActionName(actionName);
         //TODO services
 
         //Creating Branch Record
+        // 创建一个分事务 并通过RM 保存到TC 上
         String branchId = doTccActionLogStore(method, arguments, businessAction, actionContext);
         actionContext.setBranchId(branchId);
 
         //set the parameter whose type is BusinessActionContext
+        // 从方法中找到 BusinessActionContext 类型的参数
         Class<?>[] types = method.getParameterTypes();
         int argIndex = 0;
         for (Class<?> cls : types) {
@@ -80,37 +82,41 @@ public class ActionInterceptorHandler {
             argIndex++;
         }
         //the final parameters of the try method
+        // 保存调用参数
         ret.put(Constants.TCC_METHOD_ARGUMENTS, arguments);
         //the final result
+        // 保存执行结果
         ret.put(Constants.TCC_METHOD_RESULT, targetCallback.execute());
         return ret;
     }
 
     /**
      * Creating Branch Record
-     *
+     * 创建分事务
      * @param method         the method
      * @param arguments      the arguments
      * @param businessAction the business action
-     * @param actionContext  the action context
+     * @param actionContext  the action context 等待填装数据的上下文
      * @return the string
      */
     protected String doTccActionLogStore(Method method, Object[] arguments, TwoPhaseBusinessAction businessAction,
                                          BusinessActionContext actionContext) {
         String actionName = actionContext.getActionName();
         String xid = actionContext.getXid();
-        //
+        // 从方法签名中找到需要的参数（BusinessActionContextParameter 中包含的参数） 并添加到 context 中
         Map<String, Object> context = fetchActionRequestContext(method, arguments);
         context.put(Constants.ACTION_START_TIME, System.currentTimeMillis());
 
-        //init business context
+        //init business context 就是找到 T C C 3个方法并设置到 context 中
         initBusinessContext(context, method, businessAction);
-        //Init running environment context
+        //Init running environment context  将本地ip 设置到 context 中
         initFrameworkContext(context);
+        // 将参数设置到
         actionContext.setActionContext(context);
 
         //init applicationData
         Map<String, Object> applicationContext = new HashMap<String, Object>(4);
+        // 代表处理 TCC 的上下文
         applicationContext.put(Constants.TCC_ACTION_CONTEXT, context);
         String applicationContextStr = JSON.toJSONString(applicationContext);
         try {
@@ -140,7 +146,7 @@ public class ActionInterceptorHandler {
 
     /**
      * Init business context
-     *
+     * 初始化 业务上下文  携带 TwoPhaseBusinessAction 注解的方法本身被看作是 prepare 方法
      * @param context        the context
      * @param method         the method
      * @param businessAction the business action
@@ -153,6 +159,7 @@ public class ActionInterceptorHandler {
         }
         if (businessAction != null) {
             //the phase two method name
+            // 设置 confirm 和 rollback 的方法名
             context.put(Constants.COMMIT_METHOD, businessAction.commitMethod());
             context.put(Constants.ROLLBACK_METHOD, businessAction.rollbackMethod());
             context.put(Constants.ACTION_NAME, businessAction.name());
@@ -161,7 +168,7 @@ public class ActionInterceptorHandler {
 
     /**
      * Extracting context data from parameters, add them to the context
-     *
+     * 从参数中提取出上下文需要的东西
      * @param method    the method
      * @param arguments the arguments
      * @return map map
@@ -170,6 +177,7 @@ public class ActionInterceptorHandler {
         Map<String, Object> context = new HashMap<String, Object>(8);
 
         Annotation[][] parameterAnnotations = method.getParameterAnnotations();
+        // 寻找携带 BusinessActionContextParameter 的参数
         for (int i = 0; i < parameterAnnotations.length; i++) {
             for (int j = 0; j < parameterAnnotations[i].length; j++) {
                 if (parameterAnnotations[i][j] instanceof BusinessActionContextParameter) {
@@ -178,15 +186,20 @@ public class ActionInterceptorHandler {
                         throw new IllegalArgumentException("@BusinessActionContextParameter 's params can not null");
                     }
                     Object paramObject = arguments[i];
+                    // 如果注解设置了 index 属性代表是一个list
                     int index = param.index();
                     //List, get by index
                     if (index >= 0) {
+                        // 获取List 对应下标的 参数
                         Object targetParam = ((List<Object>)paramObject).get(index);
+                        // 代表是否要从该参数中抽取属性
                         if (param.isParamInProperty()) {
                             context.putAll(ActionContextUtil.fetchContextFromObject(targetParam));
                         } else {
+                            // 正常情况将参数设置到 context 中
                             context.put(param.paramName(), targetParam);
                         }
+                    // 如果只是普通对象 同样根据情况判断是否要加入到 context 中
                     } else {
                         if (param.isParamInProperty()) {
                             context.putAll(ActionContextUtil.fetchContextFromObject(paramObject));

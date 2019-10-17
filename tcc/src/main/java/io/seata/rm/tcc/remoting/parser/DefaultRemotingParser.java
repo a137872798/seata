@@ -190,6 +190,7 @@ public class DefaultRemotingParser {
                             .getMethod(interfaceClass, twoPhaseBusinessAction.rollbackMethod(),
                                 new Class[] {BusinessActionContext.class}));
                         //registry tcc resource
+                        // 将TCC 资源注册到 TCC 上 这里的资源就是记录了 Rollback 和 Commit 方法
                         DefaultResourceManager.get().registerResource(tccResource);
                     }
                 }

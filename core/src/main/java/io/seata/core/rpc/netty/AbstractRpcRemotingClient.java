@@ -304,7 +304,7 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
     }
 
     /**
-     * 将消息发送到 事务组中的某个 TC TODO 这里要注意 没有实现一致性 那么TC 节点间会在什么时候做同步呢???
+     * 将消息发送到 事务组中的某个 TC
      * @param msg     the msg
      * @param timeout the timeout
      * @return

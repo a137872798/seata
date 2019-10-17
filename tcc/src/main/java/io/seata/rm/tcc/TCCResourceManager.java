@@ -42,7 +42,7 @@ public class TCCResourceManager extends AbstractResourceManager {
 
     /**
      * TCC resource cache
-     * 资源缓存对象
+     * 本地缓存
      */
     private Map<String, Resource> tccResourceCache = new ConcurrentHashMap<String, Resource>();
 
@@ -54,7 +54,7 @@ public class TCCResourceManager extends AbstractResourceManager {
 
     /**
      * registry TCC resource
-     *
+     * 将TCC 资源注册到TC 上 这里的资源就是描述 基于TCC 实现分布式事务的 3个方法信息  （try， cancel，confirm）
      * @param resource The resource to be managed.
      */
     @Override
@@ -72,7 +72,7 @@ public class TCCResourceManager extends AbstractResourceManager {
 
     /**
      * TCC branch commit
-     *
+     * 基于TCC 模式的
      * @param branchType
      * @param xid             Transaction id.
      * @param branchId        Branch id.
@@ -84,6 +84,7 @@ public class TCCResourceManager extends AbstractResourceManager {
     @Override
     public BranchStatus branchCommit(BranchType branchType, String xid, long branchId, String resourceId,
                                      String applicationData) throws TransactionException {
+        // 获取缓存的 TCCcommit 方法信息
         TCCResource tccResource = (TCCResource)tccResourceCache.get(resourceId);
         if (tccResource == null) {
             throw new ShouldNeverHappenException("TCC resource is not exist, resourceId:" + resourceId);
@@ -109,6 +110,7 @@ public class TCCResourceManager extends AbstractResourceManager {
                     result = (boolean)ret;
                 }
             }
+            // 执行方法
             return result ? BranchStatus.PhaseTwo_Committed : BranchStatus.PhaseTwo_CommitFailed_Retryable;
         } catch (Throwable t) {
             String msg = String.format("commit TCC resource error, resourceId: %s, xid: %s.", resourceId, xid);
@@ -119,7 +121,7 @@ public class TCCResourceManager extends AbstractResourceManager {
 
     /**
      * TCC branch rollback
-     *
+     * TCC 模式下的事务回滚 就是寻找rollback 方法并执行
      * @param branchType      the branch type
      * @param xid             Transaction id.
      * @param branchId        Branch id.

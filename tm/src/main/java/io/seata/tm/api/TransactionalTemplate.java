@@ -66,7 +66,7 @@ public class TransactionalTemplate {
 
                 // Do Your Business
                 // 执行业务逻辑  就是在这层会调用到其他需要事务的服务 这样 通过传播xid 其他服务也就包裹在一个事务中 (前提是其他服务方法被@GlobalTransactional 注解修饰)
-                // 注意 业务的执行中本地事务相关的由 ConnectionProxy 去处理 在该对象中封装了 上报 branch状态 注册 branch 到globalSession 中等操作
+                // 注意 业务的执行中本地事务相关的由 Proxy 去处理 在该对象中封装了 上报 branch状态 注册 branch 到globalSession 中等操作
                 rs = business.execute();
 
             } catch (Throwable ex) {

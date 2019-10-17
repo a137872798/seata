@@ -82,7 +82,7 @@ public class DefaultCore implements Core {
      * @throws TransactionException
      */
     @Override
-    public Long branchRegister(BranchType branchType, String resourceId, String clientId, String xid,
+    public Long  branchRegister(BranchType branchType, String resourceId, String clientId, String xid,
                                String applicationData, String lockKeys) throws TransactionException {
         // 首先确保存在全局session
         GlobalSession globalSession = assertGlobalSessionNotNull(xid);

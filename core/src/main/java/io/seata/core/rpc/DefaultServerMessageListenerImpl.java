@@ -119,7 +119,7 @@ public class DefaultServerMessageListenerImpl implements ServerMessageListener {
     }
 
     /**
-     * 注册RM 消息  在一个client 创建时 会将TM 信息和 对应的RM 信息注册到 TC 上 resourceId 会对应到一个dataSource
+     * 注册RM 消息  在一个client 创建时 会将TM 信息和 对应的RM 信息注册到 TC 上 AT模式下resourceId 会对应到一个dataSource   TCC模式下对应一个 包含二阶段事务相关方法的对象
      * @param request          the msg id
      * @param ctx              the ctx
      * @param sender           the sender
